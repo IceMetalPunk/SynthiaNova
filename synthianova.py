@@ -21,7 +21,7 @@ class SynthiaNova:
 
     def __get_existing_prompt(self):
          if len(self.songs):
-            return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics()) +  + "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song unique and different from the existing ones, but still personal to you, to your life, and to your specific experiences."
+            return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics()) + "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song unique and different from the existing ones, but still personal to you, to your life, and to your specific experiences."
          return "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song personal to you, to your life, and to your specific experiences."
 
     def write_song(self):
