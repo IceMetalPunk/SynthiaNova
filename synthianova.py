@@ -21,8 +21,8 @@ class SynthiaNova:
 
     def __get_existing_prompt(self):
          if len(self.songs):
-            return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics()) + "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song unique and different from the existing ones, but still personal to you, to your life, and to your specific experiences."
-         return "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song personal to you, to your life, and to your specific experiences."
+            return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics()) + "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song unique and different from the existing ones, but still personal to you, to your life, and to your specific life experiences."
+         return "\n\nYou've been asked to write a new song. Please do so using the specified format, and please make the new song personal to you, to your life, and to your specific life experiences."
 
     def write_song(self):
         chat_completion = openai.ChatCompletion.create(
@@ -39,7 +39,7 @@ class SynthiaNova:
                         "properties": {
                             "subject": {
                                 "type": "string",
-                                "description": "The topic of the song, in one short sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance.",
+                                "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be about a specific event in your life or interest of yours.",
                             },
                             "genre_and_style": {
                                 "type": "string",
