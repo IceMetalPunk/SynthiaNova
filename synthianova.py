@@ -3,6 +3,7 @@ import openai
 import json
 import re
 import sys
+from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
 
@@ -44,12 +45,12 @@ class SynthiaNova:
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood up through the present day, as long as it fits the topic. Use the following form to write about the event."}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. Use the following form to write about the event."}
                 ],
                 functions=[
                 {
                     "name": "recall_event",
-                    "description": "Write about an event from any time in your life, relevant to the given topic.",
+                    "description": "Write about an event from any time in your life, from age 3 until present day, relevant to the given topic.",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -84,7 +85,7 @@ class SynthiaNova:
             event_description = function_args.get('event_description')
             age = function_args.get('age')
             impact = function_args.get('impact')
-            if not str(age) in event_description:
+            if not str(age) in event_description and not num2words(age) in event_description:
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
             self.memories.add(full_event)
