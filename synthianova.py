@@ -3,7 +3,7 @@ import openai
 import json
 import re
 import sys
-sys.path.append(os.path.abspath('..'))
+sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
 
 class SynthiaNova:
