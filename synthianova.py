@@ -50,7 +50,7 @@ class SynthiaNova:
                 functions=[
                 {
                     "name": "recall_event",
-                    "description": "Write about an event from any time in your life, from age 3 until present day, relevant to the given topic.",
+                    "description": "Write about an event from any time in your life, from age 3 until present day, relevant to the given topic. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
                     "parameters": {
                         "type": "object",
                         "properties": {
