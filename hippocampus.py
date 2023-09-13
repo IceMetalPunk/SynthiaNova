@@ -49,6 +49,6 @@ class Memories:
         k = 5 # Top 5 max; feel free to change this as needed
         top_k = self.database.search(query_vector, k)
         top_k_list = top_k[1].tolist()[0]
-        # 0.0625 is a magic number, obtained via a manual binary search for "good" results on test data.
+        # 0.1 is a magic number, obtained via a manual binary search for "good" results on real generated data; it might not be optimal
         # It's basically "how relevant must a memory be to be included in the results". Lower = more exact search, higher = more loose search.
-        return [self.memory_list[_id] for ind, _id in enumerate(top_k_list) if _id >= 0 and abs(top_k[0][0][ind] - top_k[0][0][0]) < 0.0625]
+        return [self.memory_list[_id] for ind, _id in enumerate(top_k_list) if _id >= 0 and abs(top_k[0][0][ind] - top_k[0][0][0]) < 0.1]
