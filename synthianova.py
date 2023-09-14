@@ -33,7 +33,7 @@ class SynthiaNova:
 
     def __get_song_request_prompt(self, subject, events):
         basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format, and please make the new song personal to you, to your life, and to your specific life experiences. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song about this, but be subtle, dont\'t just describe the events outright.'
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as inspiration. Just let them inspire you; you don\'t need to write directly about what happened!'
 
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
@@ -88,6 +88,11 @@ class SynthiaNova:
             if not str(age) in event_description and not num2words(age) in event_description:
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
+
+            if self.memories.does_contradict(full_event):
+                print('Whoops, misremembered! Let me think some more...')
+                return self.__imagine_memory(subject)
+            
             self.memories.add(full_event)
             self.memories.save()
             return full_event
@@ -156,7 +161,7 @@ class SynthiaNova:
                         "properties": {
                             "genre_and_style": {
                                 "type": "string",
-                                "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative!"
+                                "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic elements' or 'industrial metal, electropop' are both valid."
                             },
                             "lyrics": {
                                 "type": "string",
