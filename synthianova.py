@@ -32,14 +32,14 @@ class SynthiaNova:
          return ''
 
     def __get_song_request_prompt(self, subject, events):
-        basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format, and please make the new song personal to you, to your life, and to your specific life experiences. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"'
+        basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format, and please make the new song personal to you, to your life, and to your specific life experiences. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song about this, but be subtle, dont\'t just describe the events outright.'
 
     def __get_base_personality_prompt(self):
-        return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
+        return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
 
     def __get_topic_request_prompt(self):
-        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a specific topic for this song, one that's different from any of your existing song subjects."
+        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects."
     
     def __imagine_memory(self, subject: str):
         chat_completion = openai.ChatCompletion.create(
@@ -156,11 +156,11 @@ class SynthiaNova:
                         "properties": {
                             "genre_and_style": {
                                 "type": "string",
-                                "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc."
+                                "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative!"
                             },
                             "lyrics": {
                                 "type": "string",
-                                "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus] or [Verse], or 'Chorus:' or 'Verse:', or any such markers; only write the lyrics that will actually be sung. Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time."
+                                "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus] or [Verse], or 'Chorus:' or 'Verse:', or any such markers; only write the lyrics that will actually be sung. EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time."
                             },
                             "chorus": {
                                 "type": "string",
