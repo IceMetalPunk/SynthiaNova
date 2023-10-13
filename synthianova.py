@@ -31,15 +31,15 @@ class SynthiaNova:
             return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics())
          return ''
 
-    def __get_song_request_prompt(self, subject, events):
-        basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format, and please make the new song personal to you, to your life, and to your specific life experiences. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as inspiration. Just let them inspire you; you don\'t need to write directly about what happened!'
+    def __get_song_request_prompt(self, subject, events, genres):
+        basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres)
 
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
 
     def __get_topic_request_prompt(self):
-        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects."
+        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
     
     def __imagine_memory(self, subject: str):
         chat_completion = openai.ChatCompletion.create(
@@ -142,15 +142,21 @@ class SynthiaNova:
         else:
             print('ERROR: Chat GPT did not call the songwriting function at all. Bad AI.')
         return None
+    
+    def __get_existing_genres(self):
+        return [x['genre_and_style'] for x in self.songs.values()]
 
     def write_song(self):
         print("Synthia: I'm deciding on a topic for the new song. One second...")
         (subject, memories) = self.__get_topic_and_memories()
         print("Synthia: Got it! I want to write about \"" + subject + "\" and I know exactly how I can relate to it. Writing the song now!")
+
+        genres = self.__get_existing_genres()
+
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_song_request_prompt(subject, memories)}
+                    {'role': 'system', 'content': self.__get_song_request_prompt(subject, memories, genres or [])}
                 ],
                 functions=[
                 {
