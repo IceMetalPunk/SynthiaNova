@@ -39,7 +39,7 @@ class SynthiaNova:
         return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
 
     def __get_topic_request_prompt(self):
-        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
+        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something vague enough to be relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
     
     def __imagine_memory(self, subject: str):
         chat_completion = openai.ChatCompletion.create(
@@ -106,13 +106,13 @@ class SynthiaNova:
                 functions=[
                 {
                     "name": "choose_subject",
-                    "description": "Pick a subject for the new song. It should be personal to your life.",
+                    "description": "Pick a subject for the new song. It should be personal to your life, but can be as specific or vague as you like.",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "subject": {
                                 "type": "string",
-                                "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be about a specific event in your life or interest of yours.",
+                                "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be either about a specific event in your life, or vaguely about an interest of yours.",
                             }
                         },
                         "required": ["subject"]
