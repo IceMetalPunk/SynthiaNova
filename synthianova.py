@@ -9,7 +9,8 @@ from synthia_nova.hippocampus import Memories
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    model: str = 'gpt-4-0613'
+    # model: str = 'gpt-4-0613'
+    model: str = 'gpt-4-1106-preview'
     songs: dict = {}
     memories = None
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
