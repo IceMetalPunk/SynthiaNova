@@ -41,12 +41,17 @@ class SynthiaNova:
 
     def __get_topic_request_prompt(self):
         return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something vague enough to be relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
-    
+
     def __imagine_memory(self, subject: str):
+        ages = self.memories.get_memory_ages()
+        agePrompt = ''
+        for a in ages.items():
+            agePrompt += f'You have written {a[1]} songs about events that happened when you were {a[0]} years old.\n'
+
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. Use the following form to write about the event."}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
                 ],
                 functions=[
                 {

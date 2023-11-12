@@ -3,17 +3,28 @@ import faiss
 import re
 import json
 import os
+from num2words import num2words
 model = SentenceTransformer('all-mpnet-base-v2')
 cross_ranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 contradiction_checker = CrossEncoder('cross-encoder/nli-deberta-v3-base')
 
+def _ageNumsToStrings(maxAge):
+    nums = ['zero']
+    for i in range(1, maxAge + 1):
+        nums.append(num2words(i))
+    return nums
+
 class Memories:
-    memory_list = list()
+    memory_list: list = list()
     database = None
     name = None
     memory_embeddings = None
-    def __init__(self, name: str = 'Synthia Nova'):
+    age = 29
+    ageStrings = list()
+    def __init__(self, name: str = 'Synthia Nova', age = 29):
         self.name = name
+        self.age = age
+        self.ageStrings = _ageNumsToStrings(self.age)
     def add(self, memory: str):
         ''' Note: ALWAYS remember to save after adding all your memories, or they won't be searchable! '''
         self.memory_list.append(memory)
@@ -29,6 +40,27 @@ class Memories:
         with open(filename, 'r') as f:
             self.memory_list = json.load(f)
         self.save(filename)
+
+    def get_memory_ages(self):
+        ageMap = dict()
+        memories = self.memory_list.copy()
+        for memory in self.memory_list:
+            match = re.search(r'\d+', memory)
+            if match:
+                num = match.group()
+                if num not in ageMap:
+                    ageMap[num] = 0
+                ageMap[num] += 1
+                continue
+            else:
+                for i in range(self.age, 2, -1):
+                    age = self.ageStrings[i]
+                    if age in memory.lower():
+                        if str(i) not in ageMap:
+                            ageMap[str(i)] = 0
+                        ageMap[str(i)] += 1
+                        break
+        return ageMap
 
     def save(self, filename: str = None):
         if filename is None:
@@ -57,7 +89,7 @@ class Memories:
     def recall(self, query: str, count: int = 5):
         ''' Note: Will only search through the last saved memories, so save before searching! '''
         if len(self.memory_list) <= 0 or self.database is None:
-            return []
+            return list()
 
         question_embedding = model.encode(query, convert_to_tensor=True)
         count = min(count, len(self.memory_list))
