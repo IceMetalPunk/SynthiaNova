@@ -92,6 +92,8 @@ class SynthiaNova:
             age = function_args.get('age')
             impact = function_args.get('impact')
             if not str(age) in event_description and not num2words(age) in event_description:
+                if event_description[0:2] != 'I ':
+                    event_description = event_description[0].lower() + event_description[1:]
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
 
