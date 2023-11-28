@@ -16,7 +16,7 @@ const test = async () => {
     await page.waitForSelector(passwordSelector);
     await page.waitForSelector(submitButtonSelector);
     await page.type(emailSelector, 'icemetalpunk@gmail.com');
-    await page.type(passwordSelector, 'disicecordkinf1');
+    await page.type(passwordSelector, '>PASSWORD<'); // Password here
     await page.click(submitButtonSelector);
     await page.waitForNavigation({
 
