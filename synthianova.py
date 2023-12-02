@@ -187,9 +187,13 @@ class SynthiaNova:
                             "title": {
                                 "type": "string",
                                 "description": "The title of the song."
+                            },
+                            "has_bridge": {
+                                "type": "boolean",
+                                "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one."
                             }
                         },
-                        "required": ["genre_and_style", "lyrics", "chorus", "title"]
+                        "required": ["genre_and_style", "lyrics", "chorus", "title", "has_bridge"]
                     }
                 }
             ],
@@ -212,9 +216,13 @@ class SynthiaNova:
             print('ERROR: Chat GPT did not call the songwriting function at all. Bad AI.')
         return None
 
-    def __format_as_quatrains(self, lyrics):
+    def __format_as_quatrains(self, lyrics, has_bridge = False):
         lyrics = lyrics.strip()
         sectionTypes = re.findall('\[(.*?)\]', lyrics)
+        if has_bridge:
+            lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower() == 'chorus')
+            if lastChorusIndex > 0 and sectionTypes[lastChorusIndex-1].lower() == 'verse':
+                sectionTypes[lastChorusIndex-1] = 'Bridge'
         sections = re.split('\[.*?\]', lyrics)
         sections = [re.sub('\n+', r'\n', x).strip() for x in sections if x]
         for l, section in enumerate(sections):
@@ -229,6 +237,7 @@ class SynthiaNova:
     def __process_song(self, song):
         lyrics = song['lyrics'].strip()
         chorus = song['chorus'].strip()
+        has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
         chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
         parsed = lyrics.replace(chorus, '[Chorus]\n' + chorus + '\n\n[Verse]').strip()
@@ -240,7 +249,7 @@ class SynthiaNova:
         parsed = re.sub('\[Verse\]\s*$', '', parsed)
         parsed = re.sub('(?<!\n)\[', r'\n\n[', parsed)
         parsed = re.sub('\[Verse\]\n\[Chorus\]', '[Chorus]', parsed)
-        parsed = self.__format_as_quatrains(parsed)
+        parsed = self.__format_as_quatrains(parsed, has_bridge)
         return parsed.strip()
 
     def process_songs(self):
