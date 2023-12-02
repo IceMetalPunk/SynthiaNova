@@ -1,9 +1,11 @@
+import numpy
 from sentence_transformers import SentenceTransformer, CrossEncoder, util
 import faiss
 import re
 import json
 import os
 from num2words import num2words
+from torch import Tensor
 model = SentenceTransformer('all-mpnet-base-v2')
 cross_ranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 contradiction_checker = CrossEncoder('cross-encoder/nli-deberta-v3-base')
@@ -28,10 +30,11 @@ class Memories:
     def add(self, memory: str):
         ''' Note: ALWAYS remember to save after adding all your memories, or they won't be searchable! '''
         self.memory_list.append(memory)
+        
     def getCleanName(self):
         return re.sub('[^a-zA-Z0-9_]', '_', self.name.lower())
 
-    def load(self, filename: str = None):
+    def load(self, resave: bool = True, filename: str = None):
         if filename is None:
             filename = self.getCleanName() + '_memories.json'
         if not os.path.exists(filename):
@@ -39,7 +42,11 @@ class Memories:
                 f.write('[]')
         with open(filename, 'r') as f:
             self.memory_list = json.load(f)
-        self.save(filename)
+        if resave:
+            self.save(filename)
+        else:
+            self.database = faiss.read_index('index_'+self.getCleanName()+'_memories')
+            self.memory_embeddings = Tensor(numpy.array([self.database.reconstruct_n(idx, 1)[0] for idx in range(len(self.memory_list))]))
 
     def get_memory_ages(self):
         ageMap = dict()
