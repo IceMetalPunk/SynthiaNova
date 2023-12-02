@@ -16,7 +16,7 @@ class SynthiaNova:
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
         openai.api_key = openAIKey
         self.memories = Memories(name)
-        self.memories.load()
+        self.memories.load(resave=False)
         self.songFilename = songFilename
         if not os.path.exists(self.songFilename):
             self.songs = {}
