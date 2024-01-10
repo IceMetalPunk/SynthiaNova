@@ -32,17 +32,17 @@ class SynthiaNova:
             return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics())
          return ''
 
-    def __get_song_request_prompt(self, subject, events, genres):
-        basePrompt = "\n\nYou've been asked to write a new song, specifically about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
+    def __get_song_request_prompt(self, subject, events, genres, vibe):
+        basePrompt = "\n\nYou've been asked to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
         return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
-        return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics draw from your personal experience, and are known for being sometimes emotional, sometimes fun, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
+        return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
 
     def __get_topic_request_prompt(self):
         return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something vague enough to be relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
 
-    def __imagine_memory(self, subject: str):
+    def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
         agePrompt = ''
         for a in ages.items():
@@ -51,7 +51,7 @@ class SynthiaNova:
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
                 ],
                 functions=[
                 {
@@ -114,16 +114,21 @@ class SynthiaNova:
                 functions=[
                 {
                     "name": "choose_subject",
-                    "description": "Pick a subject for the new song. It should be personal to your life, but can be as specific or vague as you like.",
+                    "description": "Pick a subject for the new song. It should be either casual and fun, or personal to your life, but can be as specific or vague as you like.",
                     "parameters": {
                         "type": "object",
                         "properties": {
+                            "vibe": {
+                                "type": "string",
+                                "enum": ["casual and fun", "deep and personal"],
+                                "description": "The overall feeling of the song. Are you writing a casual and fun song to dance to, or a deep and personal song to move the listener? About 50%% of your songs should be casual and 50%% should be personal."
+                            },
                             "subject": {
                                 "type": "string",
                                 "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be either about a specific event in your life, or vaguely about an interest of yours.",
                             }
                         },
-                        "required": ["subject"]
+                        "required": ["vibe", "subject"]
                     }
                 }
             ],
@@ -138,15 +143,16 @@ class SynthiaNova:
                 print('ERROR: Chat GPT made up a different function than the songwriting one. Bad AI.')
                 return None
             function_args = json.loads(response_message["function_call"]["arguments"])
+            vibe = function_args.get('vibe')
             subject = function_args.get('subject')
-            print('Subject chosen: ' + subject)
+            print('Subject chosen: A ' + vibe + ' song about ' + subject)
             # self.songs[songtitle] = function_args
             recalled = self.memories.recall(subject)
             if len(recalled) < 5:
                 print('Have to think about a memory...')
-                self.__imagine_memory(subject)
+                self.__imagine_memory(subject, vibe)
                 recalled = self.memories.recall(subject)
-            return (subject, recalled)
+            return (subject, recalled, vibe)
         else:
             print('ERROR: Chat GPT did not call the songwriting function at all. Bad AI.')
         return None
@@ -156,14 +162,14 @@ class SynthiaNova:
 
     def write_song(self):
         print("Synthia: I'm deciding on a topic for the new song. One second...")
-        (subject, memories) = self.__get_topic_and_memories()
+        (subject, memories, vibe) = self.__get_topic_and_memories()
         print("Synthia: Got it! I want to write about \"" + subject + "\" and I know exactly how I can relate to it. Writing the song now!")
         genres = self.__get_existing_genres()
 
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, memories, genres or [])}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, memories, genres or [], vibe or 'personal')}
                 ],
                 functions=[
                 {
@@ -178,11 +184,11 @@ class SynthiaNova:
                             },
                             "lyrics": {
                                 "type": "string",
-                                "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus] or [Verse], or 'Chorus:' or 'Verse:', or any such markers; only write the lyrics that will actually be sung. EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time."
+                                "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', or 'Bridge:'; nor any such markers; only write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
                             },
                             "chorus": {
                                 "type": "string",
-                                "description": "Which part of the lyrics is the chorus? Copy the entire chorus here. Careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all. Every line should be on its own line!"
+                                "description": "Which part of the lyrics is the chorus? Copy the entire chorus here. Careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line!"
                             },
                             "title": {
                                 "type": "string",
@@ -190,7 +196,7 @@ class SynthiaNova:
                             },
                             "has_bridge": {
                                 "type": "boolean",
-                                "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one."
+                                "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one. At least 50%% of your songs should have a bridge."
                             }
                         },
                         "required": ["genre_and_style", "lyrics", "chorus", "title", "has_bridge"]
