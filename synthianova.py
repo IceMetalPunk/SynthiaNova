@@ -51,7 +51,7 @@ class SynthiaNova:
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
                 ],
                 functions=[
                 {
@@ -186,9 +186,13 @@ class SynthiaNova:
                                 "type": "string",
                                 "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', or 'Bridge:'; nor any such markers; only write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
                             },
-                            "chorus": {
-                                "type": "string",
-                                "description": "Which part of the lyrics is the chorus? Copy the entire chorus here. Careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line!"
+                            "choruses": {
+                                "type": "array",
+                                "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
+                                "items": {
+                                    "type": "string",
+                                    "description": "Each variation of the chorus; can be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
+                                }
                             },
                             "title": {
                                 "type": "string",
@@ -242,13 +246,17 @@ class SynthiaNova:
 
     def __process_song(self, song):
         lyrics = song['lyrics'].strip()
-        chorus = song['chorus'].strip()
+        if 'choruses' not in song and 'chorus' in song:
+            song['choruses'] = [song['chorus']]
+        choruses = song['choruses']
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         # lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
         # chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
         lyrics = lyrics.strip()
-        chorus = chorus.strip()
-        parsed = lyrics.replace(chorus, '[Chorus]\n' + chorus + '\n\n[Verse]').strip()
+        parsed = lyrics
+        for chorusRaw in choruses:
+            chorus = chorusRaw.strip()
+            parsed = parsed.replace(chorus, '[Chorus]\n' + chorus + '\n\n[Verse]').strip()
         if not parsed.startswith('[Chorus]'):
             parsed = '[Verse]\n' + parsed
         parsed = re.sub('\n +', r'\n', parsed)
