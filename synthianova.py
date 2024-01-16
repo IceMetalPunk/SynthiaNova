@@ -244,8 +244,10 @@ class SynthiaNova:
         lyrics = song['lyrics'].strip()
         chorus = song['chorus'].strip()
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
-        lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
-        chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
+        # lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
+        # chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
+        lyrics = lyrics.strip()
+        chorus = chorus.strip()
         parsed = lyrics.replace(chorus, '[Chorus]\n' + chorus + '\n\n[Verse]').strip()
         if not parsed.startswith('[Chorus]'):
             parsed = '[Verse]\n' + parsed
