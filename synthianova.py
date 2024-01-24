@@ -248,7 +248,7 @@ class SynthiaNova:
         lyrics = song['lyrics'].strip()
         if 'choruses' not in song and 'chorus' in song:
             song['choruses'] = [song['chorus']]
-        choruses = song['choruses']
+        choruses = set(song['choruses'])
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         # lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
         # chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
