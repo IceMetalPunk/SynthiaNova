@@ -188,10 +188,10 @@ class SynthiaNova:
                             },
                             "choruses": {
                                 "type": "array",
-                                "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
+                                "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
                                 "items": {
                                     "type": "string",
-                                    "description": "Each variation of the chorus; can be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
+                                    "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
                                 }
                             },
                             "title": {
