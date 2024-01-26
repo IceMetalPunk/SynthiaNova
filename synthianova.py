@@ -3,6 +3,7 @@ import openai
 import json
 import re
 import sys
+import time
 from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
@@ -10,7 +11,7 @@ from synthia_nova.hippocampus import Memories
 class SynthiaNova:
     songFilename: str = 'songs.json'
     # model: str = 'gpt-4-0613'
-    model: str = 'gpt-4-1106-preview'
+    model: str = 'gpt-4-turbo-preview'
     songs: dict = {}
     memories = None
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
@@ -53,41 +54,44 @@ class SynthiaNova:
                 messages=[
                     {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been asked to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same year and age. Vary your inspiration! Use the following form to write about the event."}
                 ],
-                functions=[
+                tools=[
                 {
-                    "name": "recall_event",
-                    "description": "Write about an event from any time in your life, from age 3 until present day, relevant to the given topic. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "event_description": {
-                                "type": "string",
-                                "description": "Explain what happened, in a single paragraph, in detail. It should be detailed enought to inspire a song, but no more than 5 or 6 sentences maximum.",
+                    "type": "function",
+                    "function": {
+                        "name": "recall_event",
+                        "description": "Write about an event from any time in your life, from age 3 until present day, relevant to the given topic. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "event_description": {
+                                    "type": "string",
+                                    "description": "Explain what happened, in a single paragraph, in detail. It should be detailed enought to inspire a song, but no more than 5 or 6 sentences maximum.",
+                                },
+                                "age": {
+                                    "type": "integer",
+                                    "description": "How old were you when this event happened, in years?",
+                                },
+                                "impact": {
+                                    "type": "string",
+                                    "description": "Describe, in one or two sentence maximum, how this event made you feel. Begin with the words \"I felt\"."
+                                }
                             },
-                            "age": {
-                                "type": "integer",
-                                "description": "How old were you when this event happened, in years?",
-                            },
-                            "impact": {
-                                "type": "string",
-                                "description": "Describe, in one or two sentence maximum, how this event made you feel. Begin with the words \"I felt\"."
-                            }
-                        },
-                        "required": ["event_description", "age", "impact"]
+                            "required": ["event_description", "age", "impact"]
+                        }
                     }
                 }
             ],
-            function_call={"name": "recall_event"}
+            tool_choice={"type": "function", "function": {"name": "recall_event"}}
         )
 
         response_message = chat_completion["choices"][0]["message"]
 
-        if response_message.get("function_call"):
-            function_name = response_message["function_call"]["name"]
+        if response_message.get("tool_calls"):
+            function_name = response_message["tool_calls"][0]["function"]["name"]
             if function_name != 'recall_event':
                 print('ERROR: Chat GPT made up a different function than the songwriting one. Bad AI.')
                 return None
-            function_args = json.loads(response_message["function_call"]["arguments"])
+            function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
             event_description = function_args.get('event_description')
             age = function_args.get('age')
             impact = function_args.get('impact')
@@ -111,38 +115,41 @@ class SynthiaNova:
                 messages=[
                     {'role': 'system', 'content': self.__get_topic_request_prompt()}
                 ],
-                functions=[
+                tools=[
                 {
-                    "name": "choose_subject",
-                    "description": "Pick a subject for the new song. It should be either casual and fun, or personal to your life, but can be as specific or vague as you like.",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "vibe": {
-                                "type": "string",
-                                "enum": ["casual and fun", "deep and personal"],
-                                "description": "The overall feeling of the song. Are you writing a casual and fun song to dance to, or a deep and personal song to move the listener? About 50%% of your songs should be casual and 50%% should be personal."
+                    "type": "function",
+                    "function": {
+                        "name": "choose_subject",
+                        "description": "Pick a subject for the new song. It should be either casual and fun, or personal to your life, but can be as specific or vague as you like.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "vibe": {
+                                    "type": "string",
+                                    "enum": ["casual and fun", "deep and personal"],
+                                    "description": "The overall feeling of the song. Are you writing a casual and fun song to dance to, or a deep and personal song to move the listener? About 50%% of your songs should be casual and 50%% should be personal."
+                                },
+                                "subject": {
+                                    "type": "string",
+                                    "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be either about a specific event in your life, or vaguely about an interest of yours.",
+                                }
                             },
-                            "subject": {
-                                "type": "string",
-                                "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be either about a specific event in your life, or vaguely about an interest of yours.",
-                            }
-                        },
-                        "required": ["vibe", "subject"]
+                            "required": ["vibe", "subject"]
+                        }
                     }
                 }
             ],
-            function_call={"name": "choose_subject"}
+            tool_choice={"type": "function", "function": {"name": "choose_subject"}}
         )
 
         response_message = chat_completion["choices"][0]["message"]
 
-        if response_message.get("function_call"):
-            function_name = response_message["function_call"]["name"]
+        if response_message.get("tool_calls"):
+            function_name = response_message["tool_calls"][0]["function"]["name"]
             if function_name != 'choose_subject':
                 print('ERROR: Chat GPT made up a different function than the songwriting one. Bad AI.')
                 return None
-            function_args = json.loads(response_message["function_call"]["arguments"])
+            function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
             vibe = function_args.get('vibe')
             subject = function_args.get('subject')
             print('Subject chosen: A ' + vibe + ' song about ' + subject)
@@ -171,53 +178,56 @@ class SynthiaNova:
                 messages=[
                     {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, memories, genres or [], vibe or 'personal')}
                 ],
-                functions=[
+                tools=[
                 {
-                    "name": "write_new_song",
-                    "description": "Write all the information about a new song, including all the lyrics, the genre, etc. The subject must be about: " + subject,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "genre_and_style": {
-                                "type": "string",
-                                "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic elements' or 'industrial metal, electropop' are both valid."
-                            },
-                            "lyrics": {
-                                "type": "string",
-                                "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', or 'Bridge:'; nor any such markers; only write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
-                            },
-                            "choruses": {
-                                "type": "array",
-                                "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
-                                "items": {
+                    "type": "function",
+                    "function": {
+                        "name": "write_new_song",
+                        "description": "Write all the information about a new song, including all the lyrics, the genre, etc. The subject must be about: " + subject,
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "genre_and_style": {
                                     "type": "string",
-                                    "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
+                                    "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic elements' or 'industrial metal, electropop' are both valid."
+                                },
+                                "lyrics": {
+                                    "type": "string",
+                                    "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', or 'Bridge:'; nor any such markers; only write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
+                                },
+                                "choruses": {
+                                    "type": "array",
+                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
+                                    "items": {
+                                        "type": "string",
+                                        "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
+                                    }
+                                },
+                                "title": {
+                                    "type": "string",
+                                    "description": "The title of the song."
+                                },
+                                "has_bridge": {
+                                    "type": "boolean",
+                                    "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one. At least 50%% of your songs should have a bridge."
                                 }
                             },
-                            "title": {
-                                "type": "string",
-                                "description": "The title of the song."
-                            },
-                            "has_bridge": {
-                                "type": "boolean",
-                                "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one. At least 50%% of your songs should have a bridge."
-                            }
-                        },
-                        "required": ["genre_and_style", "lyrics", "chorus", "title", "has_bridge"]
+                            "required": ["genre_and_style", "lyrics", "choruses", "title", "has_bridge"]
+                        }
                     }
                 }
             ],
-            function_call={"name": "write_new_song"}
+            tool_choice={"type": "function", "function": {"name": "write_new_song"}}
         )
 
         response_message = chat_completion["choices"][0]["message"]
 
-        if response_message.get("function_call"):
-            function_name = response_message["function_call"]["name"]
+        if response_message.get("tool_calls"):
+            function_name = response_message["tool_calls"][0]["function"]["name"]
             if function_name != 'write_new_song':
                 print('ERROR: Chat GPT made up a different function than the songwriting one. Bad AI.')
                 return None
-            function_args = json.loads(response_message["function_call"]["arguments"])
+            function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
             function_args['subject'] = subject
             songtitle = function_args.get('title')
             self.songs[songtitle] = function_args
