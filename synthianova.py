@@ -157,6 +157,7 @@ class SynthiaNova:
             recalled = self.memories.recall(subject)
             if len(recalled) < 5:
                 print('Have to think about a memory...')
+                time.sleep(15)
                 self.__imagine_memory(subject, vibe)
                 recalled = self.memories.recall(subject)
             return (subject, recalled, vibe)
@@ -172,7 +173,7 @@ class SynthiaNova:
         (subject, memories, vibe) = self.__get_topic_and_memories()
         print("Synthia: Got it! I want to write about \"" + subject + "\" and I know exactly how I can relate to it. Writing the song now!")
         genres = self.__get_existing_genres()
-
+        time.sleep(15)
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
@@ -197,7 +198,7 @@ class SynthiaNova:
                                 },
                                 "choruses": {
                                     "type": "array",
-                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim.",
+                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim. Only include choruses, not any verses or bridges.",
                                     "items": {
                                         "type": "string",
                                         "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
@@ -258,15 +259,20 @@ class SynthiaNova:
         lyrics = song['lyrics'].strip()
         if 'choruses' not in song and 'chorus' in song:
             song['choruses'] = [song['chorus']]
-        choruses = set(song['choruses'])
+        choruses = sorted(set(song['choruses']), reverse=True, key=len)
+        # print(choruses)
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         # lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
         # chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
         lyrics = lyrics.strip()
         parsed = lyrics
-        for chorusRaw in choruses:
+        for (i, chorusRaw) in enumerate(choruses):
             chorus = chorusRaw.strip()
-            parsed = parsed.replace(chorus, '[Chorus]\n' + chorus + '\n\n[Verse]').strip()
+            parsed = parsed.replace(chorus, '[Chorus]\n~~~~~~~~~~' + str(i) + '~~~~~~~~~~\n\n[Verse]').strip()
+        parsed = re.sub('(\[Chorus\]\n){2,}', r'[Chorus]\n', parsed)
+        for (i, chorusRaw) in enumerate(choruses):
+            chorus = chorusRaw.strip()
+            parsed = parsed.replace('~~~~~~~~~~' + str(i) + '~~~~~~~~~~', chorus).strip()
         if not parsed.startswith('[Chorus]'):
             parsed = '[Verse]\n' + parsed
         parsed = re.sub('\n +', r'\n', parsed)
