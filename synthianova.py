@@ -65,7 +65,7 @@ class SynthiaNova:
                             "properties": {
                                 "event_description": {
                                     "type": "string",
-                                    "description": "Explain what happened, in a single paragraph, in detail. It should be detailed enought to inspire a song, but no more than 5 or 6 sentences maximum.",
+                                    "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
                                 },
                                 "age": {
                                     "type": "integer",
@@ -73,7 +73,7 @@ class SynthiaNova:
                                 },
                                 "impact": {
                                     "type": "string",
-                                    "description": "Describe, in one or two sentence maximum, how this event made you feel. Begin with the words \"I felt\"."
+                                    "description": "Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\"."
                                 }
                             },
                             "required": ["event_description", "age", "impact"]
