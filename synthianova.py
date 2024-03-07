@@ -194,7 +194,7 @@ class SynthiaNova:
                                 },
                                 "lyrics": {
                                     "type": "string",
-                                    "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', or 'Bridge:'; nor any such markers; only write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
+                                    "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', nor 'Bridge:'; nor any such markers! ONLY write the lyrics that will actually be sung! EXCLUDE structure markers! Every line should be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
                                 },
                                 "choruses": {
                                     "type": "array",
