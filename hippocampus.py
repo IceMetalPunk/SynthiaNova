@@ -90,8 +90,8 @@ class Memories:
         args = cross_scores.argmax(axis=1)
         for i, score_max in enumerate(args):
             if score_max == 0:
-                return True
-        return False
+                return True, self.memory_list[i]
+        return False, None
 
     def recall(self, query: str, count: int = 5):
         ''' Note: Will only search through the last saved memories, so save before searching! '''

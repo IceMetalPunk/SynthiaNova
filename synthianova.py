@@ -1,4 +1,5 @@
 import os
+from textwrap import dedent
 import openai
 import json
 import re
@@ -28,20 +29,15 @@ class SynthiaNova:
     def set_model(self, model):
         self.model = model
 
-    def __get_existing_prompt(self):
-         if len(self.songs):
-            return "Here are some of your existing songs' topics:\n\n* " + '\n* '.join(self.__get_existing_song_topics())
-         return ''
-
-    def __get_song_request_prompt(self, subject, events, genres, vibe):
+    def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
         basePrompt = "\n\nYou've been asked to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
+        return basePrompt + '"' + '\n\n'.join([initial_memory] + events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
-        return "You are a famous 29-year-old female singer. Your work is eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times."
+        return "You are a famous 29-year-old female singer from the city. Your work is eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
 
-    def __get_topic_request_prompt(self):
-        return self.__get_base_personality_prompt() + ' ' + self.__get_existing_prompt() + "\n\nYou've been asked to write a new song. Please suggest a topic for this song, one that's different from any of your existing song subjects. It should be something vague enough to be relatable to many people, but still unique enough to be interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale!"
+    def __get_topic_request_prompt(self, initial_memory):
+        return self.__get_base_personality_prompt() + "\n\nYou've been asked to write a new song, inspired by the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a good, slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It can convey any emotion, from joy to despair; be diverse so your art doesn't get boring and stale! Pick something concise and not too specific."
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -101,26 +97,108 @@ class SynthiaNova:
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
 
-            if self.memories.does_contradict(full_event):
+            contradiction = self.memories.does_contradict(full_event)
+            if contradiction[0]:
                 print('Whoops, misremembered! Let me think some more...')
+                print("System: Conflicting memory: " + contradiction[1])
                 return self.__imagine_memory(subject)
             
             self.memories.add(full_event)
             self.memories.save()
             return full_event
 
-    def __get_topic_and_memories(self):
+    def __imagine_free_memory(self):
+        ages = self.memories.get_memory_ages()
+        agePrompt = ''
+        for a in ages.items():
+            agePrompt += f"""
+                You have written {a[1]} song{'s' if a[1] > 1 else ''} about events that happened when you were {a[0]} years old."""
+
+        fullPrompt = f"""{self.__get_base_personality_prompt()}
+                
+                You've been asked to write a new song. Please recall an event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal.
+            
+                You can choose any event, from your childhood at age 10 up through the present day. For reference:
+                {agePrompt}
+            
+                Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages. Vary your inspiration! Use the following form to write about the event."""
+
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_topic_request_prompt()}
+                    {
+                        'role': 'system',
+                        'content': dedent(fullPrompt.strip('\n'))
+                    }
+                ],
+                tools=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "recall_event",
+                        "description": "Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
+                        "parameters": {
+                            "type": "object",
+                            "properties": {
+                                "event_description": {
+                                    "type": "string",
+                                    "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
+                                },
+                                "age": {
+                                    "type": "integer",
+                                    "description": "How old were you when this event happened, in years?",
+                                },
+                                "impact": {
+                                    "type": "string",
+                                    "description": "Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\"."
+                                }
+                            },
+                            "required": ["event_description", "age", "impact"]
+                        }
+                    }
+                }
+            ],
+            tool_choice={"type": "function", "function": {"name": "recall_event"}}
+        )
+
+        response_message = chat_completion["choices"][0]["message"]
+
+        if response_message.get("tool_calls"):
+            function_name = response_message["tool_calls"][0]["function"]["name"]
+            if function_name != 'recall_event':
+                print('ERROR: Chat GPT made up a different function than the songwriting one. Bad AI.')
+                return None
+            function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
+            event_description = function_args.get('event_description')
+            age = function_args.get('age')
+            impact = function_args.get('impact')
+            if not str(age) in event_description and not num2words(age) in event_description:
+                if event_description[0:2] != 'I ':
+                    event_description = event_description[0].lower() + event_description[1:]
+                event_description = 'When I was ' + str(age) + ', ' + event_description
+            full_event = event_description + ' ' + impact
+            contradiction = self.memories.does_contradict(full_event)
+            if contradiction[0]:
+                print('Whoops, misremembered! Let me think some more...')
+                print("System: Conflicting memory: " + contradiction[1])
+                return self.__imagine_free_memory()
+            
+            self.memories.add(full_event)
+            self.memories.save()
+            return full_event
+        
+    def __get_topic_from_memory(self, initial_memory):
+        chat_completion = openai.ChatCompletion.create(
+                model=self.model,
+                messages=[
+                    {'role': 'system', 'content': self.__get_topic_request_prompt(initial_memory)}
                 ],
                 tools=[
                 {
                     "type": "function",
                     "function": {
                         "name": "choose_subject",
-                        "description": "Pick a subject for the new song. It should be either casual and fun, or personal to your life, but can be as specific or vague as you like.",
+                        "description": "Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life.",
                         "parameters": {
                             "type": "object",
                             "properties": {
@@ -131,7 +209,7 @@ class SynthiaNova:
                                 },
                                 "subject": {
                                     "type": "string",
-                                    "description": "The topic of the song, in one short but specific sentence. It can be about anything: relationships, love, politics, beauty, grief, loss, anger, partying, clubbing, fun, sadness, a fun story from your life; anything interesting. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be either about a specific event in your life, or vaguely about an interest of yours.",
+                                    "description": "The topic of the song, in one short sentence. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. It should be clearly inspired by that memory.",
                                 }
                             },
                             "required": ["vibe", "subject"]
@@ -152,32 +230,14 @@ class SynthiaNova:
             function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
             vibe = function_args.get('vibe')
             subject = function_args.get('subject')
-            print('Subject chosen: A ' + vibe + ' song about ' + subject)
-            # self.songs[songtitle] = function_args
-            recalled = self.memories.recall(subject)
-            if len(recalled) < 5:
-                print('Have to think about a memory...')
-                time.sleep(15)
-                self.__imagine_memory(subject, vibe)
-                recalled = self.memories.recall(subject)
-            return (subject, recalled, vibe)
-        else:
-            print('ERROR: Chat GPT did not call the songwriting function at all. Bad AI.')
-        return None
-    
-    def __get_existing_genres(self):
-        return [x['genre_and_style'] for x in self.songs.values()]
+            return (subject, vibe)
 
-    def write_song(self):
-        print("Synthia: I'm deciding on a topic for the new song. One second...")
-        (subject, memories, vibe) = self.__get_topic_and_memories()
-        print("Synthia: Got it! I want to write about \"" + subject + "\" and I know exactly how I can relate to it. Writing the song now!")
+    def __write_song_from(self, subject, vibe, initial_memory, memories):
         genres = self.__get_existing_genres()
-        time.sleep(15)
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
                 messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, memories, genres or [], vibe or 'personal')}
+                    {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, initial_memory, memories, genres or [], vibe or 'personal')}
                 ],
                 tools=[
                 {
@@ -237,6 +297,21 @@ class SynthiaNova:
             print('ERROR: Chat GPT did not call the songwriting function at all. Bad AI.')
         return None
 
+
+    def write_song(self):
+        print('Deciding on a memory to inspire my new song...')
+        initial_memory = self.__imagine_free_memory()
+        print('Deciding on a topic inspired by that memory...')
+        subject, vibe = self.__get_topic_from_memory(initial_memory)
+        print('Thinking of other memories that fit the topic...')
+        recalled = self.memories.recall(subject)
+        print('Alright, now I\'ll get to writing the song! ...')
+        title = self.__write_song_from(subject, vibe, initial_memory, recalled)
+        return (title, [initial_memory] + recalled)
+    
+    def __get_existing_genres(self):
+        return [x['genre_and_style'] for x in self.songs.values()]
+
     def __format_as_quatrains(self, lyrics, has_bridge = False):
         lyrics = lyrics.strip()
         sectionTypes = re.findall('\[(.*?)\]', lyrics)
@@ -260,10 +335,7 @@ class SynthiaNova:
         if 'choruses' not in song and 'chorus' in song:
             song['choruses'] = [song['chorus']]
         choruses = sorted(set(song['choruses']), reverse=True, key=len)
-        # print(choruses)
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
-        # lyrics = re.sub('([.!?](?!\.)\s*)', r'\1\n', lyrics).strip()
-        # chorus = re.sub('([.!?](?!\.)\s*)', r'\1\n', chorus).strip()
         lyrics = lyrics.strip()
         parsed = lyrics
         for (i, chorusRaw) in enumerate(choruses):
@@ -292,9 +364,6 @@ class SynthiaNova:
     def save_songs(self):
         with open(self.songFilename, 'w') as f:
             json.dump(self.songs, f, indent=2)
-
-    def __get_existing_song_topics(self):
-        return [x['subject'] for x in self.songs.values()]
     
     def get_songs(self):
         return self.songs
