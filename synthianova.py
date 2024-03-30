@@ -1,5 +1,6 @@
 import os
 from textwrap import dedent
+from typing import List
 import openai
 import json
 import re
@@ -106,21 +107,40 @@ class SynthiaNova:
             self.memories.add(full_event)
             self.memories.save()
             return full_event
+        
+    def __imagine_inspiring_memory(self, excluded_memories: List[str] = []):
+        test_memory = self.__imagine_free_memory(excluded_memories)
+        print('Thinking back to make sure I didn\'t already write about this yet...')
+        match = self.memories.recall(test_memory, 1, True)
+        if len(match) > 0:
+            (text, relevance) = match[0]
+            if relevance >= 0:
+                print('Too similar to a previous memory. Thinking some more....')
+                return self.__imagine_inspiring_memory(excluded_memories=excluded_memories + [text])
+        return test_memory
 
-    def __imagine_free_memory(self):
+    def __imagine_free_memory(self, excluded_memories: List[str] = None):
         ages = self.memories.get_memory_ages()
         agePrompt = ''
+        exclusionPrompt = ''
         for a in ages.items():
             agePrompt += f"""
                 You have written {a[1]} song{'s' if a[1] > 1 else ''} about events that happened when you were {a[0]} years old."""
+        if excluded_memories:
+            exclusions = "\n".join(excluded_memories)
+            exclusionPrompt = f"""
+                Below are some memories you've already written songs about; please pick a very different memory about a very different topic. Be varied! Don't write the same things over and over!
+                {exclusions}"""
 
         fullPrompt = f"""{self.__get_base_personality_prompt()}
                 
-                You've been asked to write a new song. Please recall an event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal.
+                You've been asked to write a new song. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. Any inspiring memory is a good one!
             
                 You can choose any event, from your childhood at age 10 up through the present day. For reference:
                 {agePrompt}
             
+                {exclusionPrompt}
+                
                 Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages. Vary your inspiration! Use the following form to write about the event."""
 
         chat_completion = openai.ChatCompletion.create(
@@ -181,10 +201,8 @@ class SynthiaNova:
             if contradiction[0]:
                 print('Whoops, misremembered! Let me think some more...')
                 print("System: Conflicting memory: " + contradiction[1])
-                return self.__imagine_free_memory()
+                return self.__imagine_free_memory(excluded_memories=excluded_memories)
             
-            self.memories.add(full_event)
-            self.memories.save()
             return full_event
         
     def __get_topic_from_memory(self, initial_memory):
@@ -254,7 +272,7 @@ class SynthiaNova:
                                 },
                                 "lyrics": {
                                     "type": "string",
-                                    "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], or [Bridge]; nor 'Chorus:', 'Verse:', nor 'Bridge:'; nor any such markers! ONLY write the lyrics that will actually be sung! EXCLUDE structure markers! Every line must be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
+                                    "description": "All the lyrics of the song. Do NOT, under any circumstances, include tags like [Chorus], [Verse], etc.; nor 'Chorus:', 'Verse:', etc.; nor any such markers! ONLY write the lyrics that will actually be sung! EXCLUDE structure markers! Every line must be on its own line! If the chorus is sung multiple times, write out its lyrics every time. Include any backing vocals or gang vocals if you like, including 'heys' and 'oohs', (in parentheses) where they should be sung."
                                 },
                                 "choruses": {
                                     "type": "array",
@@ -270,7 +288,7 @@ class SynthiaNova:
                                 },
                                 "has_bridge": {
                                     "type": "boolean",
-                                    "description": "If this song has a bridge, set this to True. If it does not have a bridge, set this to False. Not all songs need a bridge, but please indicate whether or not this song has one. At least 50%% of your songs should have a bridge."
+                                    "description": "If this song has a bridge, set this to True. If it does not, set this to False. At least 50%% of your songs should have a bridge, but not every one."
                                 }
                             },
                             "required": ["genre_and_style", "lyrics", "choruses", "title", "has_bridge"]
@@ -300,7 +318,9 @@ class SynthiaNova:
 
     def write_song(self):
         print('Deciding on a memory to inspire my new song...')
-        initial_memory = self.__imagine_free_memory()
+        initial_memory = self.__imagine_inspiring_memory()
+        self.memories.add(initial_memory)
+        self.memories.save()
         print('Deciding on a topic inspired by that memory...')
         subject, vibe = self.__get_topic_from_memory(initial_memory)
         print('Thinking of other memories that fit the topic...')
