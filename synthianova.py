@@ -12,8 +12,7 @@ from synthia_nova.hippocampus import Memories
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    # model: str = 'gpt-4-0613'
-    model: str = 'gpt-4-turbo-preview'
+    model: str = 'gpt-4-turbo'
     songs: dict = {}
     memories = None
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
@@ -31,8 +30,8 @@ class SynthiaNova:
         self.model = model
 
     def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
-        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. I'll remind you of a few events from your life that are relevant to the topic, in your own words:\n\n"
-        return basePrompt + '"' + '\n\n'.join([initial_memory] + events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
+        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nHere are some other related memories you've talked about:\n\n"
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer from the city. Your work is eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
@@ -160,20 +159,24 @@ class SynthiaNova:
                         "parameters": {
                             "type": "object",
                             "properties": {
-                                "event_description": {
+                                "emotion": {
                                     "type": "string",
-                                    "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
+                                    "description": "What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?"
                                 },
                                 "age": {
                                     "type": "integer",
                                     "description": "How old were you when this event happened, in years?",
+                                },
+                                "event_description": {
+                                    "type": "string",
+                                    "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
                                 },
                                 "impact": {
                                     "type": "string",
                                     "description": "Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\"."
                                 }
                             },
-                            "required": ["event_description", "age", "impact"]
+                            "required": ["emotion", "age", "event_description", "impact"]
                         }
                     }
                 }
