@@ -342,6 +342,8 @@ class SynthiaNova:
             lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower() == 'chorus')
             if lastChorusIndex > 0 and sectionTypes[lastChorusIndex-1].lower() == 'verse':
                 sectionTypes[lastChorusIndex-1] = 'Bridge'
+                if lastChorusIndex == 1:
+                    sectionTypes[lastChorusIndex-1] = 'Intro'
         sections = re.split('\[.*?\]', lyrics)
         sections = [re.sub('\n+', r'\n', x).strip() for x in sections if x]
         for l, section in enumerate(sections):
