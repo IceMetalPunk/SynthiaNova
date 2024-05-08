@@ -30,7 +30,7 @@ class SynthiaNova:
         self.model = model
 
     def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
-        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nHere are some other related memories you've talked about:\n\n"
+        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary focus of the song; but here are some other related memories you've talked about:\n\n"
         return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
@@ -116,6 +116,11 @@ class SynthiaNova:
             if relevance >= 0:
                 print('Too similar to a previous memory. Thinking some more....')
                 return self.__imagine_inspiring_memory(excluded_memories=excluded_memories + [text])
+        contradiction = self.memories.does_contradict(test_memory)
+        if contradiction[0]:
+            print('Whoops, misremembered! Let me think some more...')
+            print("System: Conflicting memory: " + contradiction[1])
+            return self.__imagine_free_memory(excluded_memories=excluded_memories)
         return test_memory
 
     def __imagine_free_memory(self, excluded_memories: List[str] = None):
@@ -128,12 +133,12 @@ class SynthiaNova:
         if excluded_memories:
             exclusions = "\n".join(excluded_memories)
             exclusionPrompt = f"""
-                Below are some memories you've already written songs about; please pick a very different memory about a very different topic. Be varied! Don't write the same things over and over!
+                Below are some memories you've already written songs about; please pick a very different memory about a very different topic. Be varied! Don't write about the same things over and over!
                 {exclusions}"""
 
         fullPrompt = f"""{self.__get_base_personality_prompt()}
                 
-                You've been asked to write a new song. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. Any inspiring memory is a good one!
+                You've been asked to write a new song. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. All emotions, even negative ones, are valid inspiration! Emotional range across both positive and negative is the key to good songwriting.
             
                 You can choose any event, from your childhood at age 10 up through the present day. For reference:
                 {agePrompt}
@@ -166,6 +171,8 @@ class SynthiaNova:
                                 "age": {
                                     "type": "integer",
                                     "description": "How old were you when this event happened, in years?",
+                                    "minimum": 10,
+                                    "maximum": 29
                                 },
                                 "event_description": {
                                     "type": "string",
@@ -200,11 +207,6 @@ class SynthiaNova:
                     event_description = event_description[0].lower() + event_description[1:]
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
-            contradiction = self.memories.does_contradict(full_event)
-            if contradiction[0]:
-                print('Whoops, misremembered! Let me think some more...')
-                print("System: Conflicting memory: " + contradiction[1])
-                return self.__imagine_free_memory(excluded_memories=excluded_memories)
             
             return full_event
         
@@ -271,7 +273,7 @@ class SynthiaNova:
                             "properties": {
                                 "genre_and_style": {
                                     "type": "string",
-                                    "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic elements' or 'industrial metal, electropop' are both valid."
+                                    "description": "The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic' or 'industrial metal, electropop' are both valid."
                                 },
                                 "lyrics": {
                                     "type": "string",
