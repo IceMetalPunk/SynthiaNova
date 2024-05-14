@@ -12,7 +12,7 @@ from synthia_nova.hippocampus import Memories
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    model: str = 'gpt-4-turbo'
+    model: str = 'gpt-4o'
     songs: dict = {}
     memories = None
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
