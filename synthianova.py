@@ -31,7 +31,7 @@ class SynthiaNova:
 
     def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
         basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary focus of the song; but here are some other related memories you've talked about:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a 4 to 5 minute long song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer from the city. Your work is eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
@@ -281,7 +281,7 @@ class SynthiaNova:
                                 },
                                 "choruses": {
                                     "type": "array",
-                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim. Only include choruses, not any verses or bridges.",
+                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Multiple stanzas of the same chorus should be grouped together, not considered separate choruses here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim. Only include choruses, not any verses or bridges.",
                                     "items": {
                                         "type": "string",
                                         "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
@@ -340,6 +340,9 @@ class SynthiaNova:
     def __format_as_quatrains(self, lyrics, has_bridge = False):
         lyrics = lyrics.strip()
         sectionTypes = re.findall('\[(.*?)\]', lyrics)
+        if sectionTypes[-1].lower() == 'verse':
+            sectionTypes[-1] = 'Outro'
+
         if has_bridge:
             lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower() == 'chorus')
             if lastChorusIndex > 0 and sectionTypes[lastChorusIndex-1].lower() == 'verse':
@@ -354,7 +357,12 @@ class SynthiaNova:
             for i in range(4, len(lines), 4):
                 lines.insert(i + inserted, '')
                 inserted += 1
-            sections[l] = '\n'.join([f"[{sectionTypes[l]}]"] + lines) + '\n'
+            if l > 0 and sectionTypes[l] == sectionTypes[l-1]:
+                sections[l] = '\n'.join(lines) + '\n'
+            elif sectionTypes[l] == 'Outro' and len(lines) > 4:
+                sections[l] = '\n'.join([f"[Verse]"] + lines) + '\n'
+            else:
+                sections[l] = '\n'.join([f"[{sectionTypes[l]}]"] + lines) + '\n'
         return '\n'.join(sections)
 
     def __process_song(self, song):
