@@ -101,7 +101,7 @@ class SynthiaNova:
             if contradiction[0]:
                 print('Whoops, misremembered! Let me think some more...')
                 print("System: Conflicting memory: " + contradiction[1])
-                return self.__imagine_memory(subject)
+                return self.__imagine_memory(subject, vibe)
             
             self.memories.add(full_event)
             self.memories.save()
