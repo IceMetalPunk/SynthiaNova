@@ -100,30 +100,32 @@ class SynthiaNova:
             contradiction = self.memories.does_contradict(full_event)
             if contradiction[0]:
                 print('Whoops, misremembered! Let me think some more...')
-                print("System: Conflicting memory: " + contradiction[1])
+                print("System: Conflicting memories:")
+                print("New: " + full_event)
+                print("Existing: " + contradiction[1])
                 return self.__imagine_memory(subject, vibe)
             
             self.memories.add(full_event)
             self.memories.save()
             return full_event
         
-    def __imagine_inspiring_memory(self, excluded_memories: List[str] = []):
-        test_memory = self.__imagine_free_memory(excluded_memories)
+    def __imagine_inspiring_memory(self, forcedEmotions: List[str] = None, excluded_memories: List[str] = []):
+        test_memory = self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories)
         print('Thinking back to make sure I didn\'t already write about this yet...')
         match = self.memories.recall(test_memory, 1, True)
         if len(match) > 0:
             (text, relevance) = match[0]
             if relevance >= 0:
                 print('Too similar to a previous memory. Thinking some more....')
-                return self.__imagine_inspiring_memory(excluded_memories=excluded_memories + [text])
+                return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories + [text])
         contradiction = self.memories.does_contradict(test_memory)
         if contradiction[0]:
             print('Whoops, misremembered! Let me think some more...')
             print("System: Conflicting memory: " + contradiction[1])
-            return self.__imagine_free_memory(excluded_memories=excluded_memories)
+            return self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories)
         return test_memory
 
-    def __imagine_free_memory(self, excluded_memories: List[str] = None):
+    def __imagine_free_memory(self, forcedEmotions: List[str] = None, excluded_memories: List[str] = None):
         ages = self.memories.get_memory_ages()
         agePrompt = ''
         exclusionPrompt = ''
@@ -146,6 +148,43 @@ class SynthiaNova:
                 {exclusionPrompt}
                 
                 Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages. Vary your inspiration! Use the following form to write about the event."""
+        allowedEmotions = {
+                          "type": "string",
+                          "description": "What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?"
+                          }
+        if forcedEmotions:
+            allowedEmotions['enum'] = forcedEmotions
+            print('Forcing emotions: ', forcedEmotions)
+        tools=[
+            {
+                "type": "function",
+                "function": {
+                    "name": "recall_event",
+                    "description": "Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "emotion": allowedEmotions,
+                            "age": {
+                                "type": "integer",
+                                "description": "How old were you when this event happened, in years?",
+                                "minimum": 10,
+                                "maximum": 29
+                            },
+                            "event_description": {
+                                "type": "string",
+                                "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
+                            },
+                            "impact": {
+                                "type": "string",
+                                "description": "Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\"."
+                            }
+                        },
+                        "required": ["emotion", "age", "event_description", "impact"]
+                    }
+                }
+            }
+        ]
 
         chat_completion = openai.ChatCompletion.create(
                 model=self.model,
@@ -155,40 +194,8 @@ class SynthiaNova:
                         'content': dedent(fullPrompt.strip('\n'))
                     }
                 ],
-                tools=[
-                {
-                    "type": "function",
-                    "function": {
-                        "name": "recall_event",
-                        "description": "Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
-                        "parameters": {
-                            "type": "object",
-                            "properties": {
-                                "emotion": {
-                                    "type": "string",
-                                    "description": "What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?"
-                                },
-                                "age": {
-                                    "type": "integer",
-                                    "description": "How old were you when this event happened, in years?",
-                                    "minimum": 10,
-                                    "maximum": 29
-                                },
-                                "event_description": {
-                                    "type": "string",
-                                    "description": "Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.",
-                                },
-                                "impact": {
-                                    "type": "string",
-                                    "description": "Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\"."
-                                }
-                            },
-                            "required": ["emotion", "age", "event_description", "impact"]
-                        }
-                    }
-                }
-            ],
-            tool_choice={"type": "function", "function": {"name": "recall_event"}}
+                tools=tools,
+                tool_choice={"type": "function", "function": {"name": "recall_event"}}
         )
 
         response_message = chat_completion["choices"][0]["message"]
@@ -200,6 +207,7 @@ class SynthiaNova:
                 return None
             function_args = json.loads(response_message["tool_calls"][0]["function"]["arguments"])
             event_description = function_args.get('event_description')
+            print('Chosen emotion: ' + function_args.get('emotion'))
             age = function_args.get('age')
             impact = function_args.get('impact')
             if not str(age) in event_description and not num2words(age) in event_description:
@@ -281,7 +289,7 @@ class SynthiaNova:
                                 },
                                 "choruses": {
                                     "type": "array",
-                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each variation should be listed separately here. Multiple stanzas of the same chorus should be grouped together, not considered separate choruses here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim. Only include choruses, not any verses or bridges.",
+                                    "description": "Which parts of the lyrics are the chorus? Copy the entire chorus here. Most songs will only have one chorus, but only if this has variations on a chorus, each distinct variation should be listed separately here. Multiple stanzas of the same chorus should be grouped together, not considered separate choruses here. Be careful not to make any typos; it should be exactly the same as it's written in the lyrics. EXACTLY the same with no differences at all, including any backing vocals or gang vocals! Every line should be on its own line! Every chorus variation should be included in this list verbatim. Only include choruses, not any verses or bridges.",
                                     "items": {
                                         "type": "string",
                                         "description": "Each variation of the chorus; should be only one if the chorus doesn't change throughout the song. This MUST be exactly the chorus as written in the lyrics, and CANNOT have anything else in it. Only include gang vocals if they're actually part of the chorus."
@@ -321,9 +329,9 @@ class SynthiaNova:
         return None
 
 
-    def write_song(self):
+    def write_song(self, forcedEmotions=None):
         print('Deciding on a memory to inspire my new song...')
-        initial_memory = self.__imagine_inspiring_memory()
+        initial_memory = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions)
         self.memories.add(initial_memory)
         self.memories.save()
         print('Deciding on a topic inspired by that memory...')
