@@ -5,7 +5,7 @@ import openai
 import json
 import re
 import sys
-from .types import FreeMemory, MemoryTopic, SongInfo, SubjectBasedMemory
+from .types import MemoryTopic, SongInfo, SubjectBasedMemory, getFreeMemoryClass
 from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
@@ -37,7 +37,7 @@ class SynthiaNova:
         return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
 
     def __get_topic_request_prompt(self, initial_memory, emotion):
-        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a good, slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ". Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life."
+        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a good, slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ". Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life. Make sure it emphasizes the feeling of " + emotion + "!"
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -92,7 +92,9 @@ class SynthiaNova:
         contradiction = self.memories.does_contradict(test_memory)
         if contradiction[0]:
             print('Whoops, misremembered! Let me think some more...')
-            print("System: Conflicting memory: " + contradiction[1])
+            print("System: Conflicting memories:")
+            print("New: " + test_memory)
+            print("Existing: " + contradiction[1])
             return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories)
         return test_memory, emotion
 
@@ -121,13 +123,9 @@ class SynthiaNova:
                 Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages. Vary your inspiration! Use the following form to write about the event.
                 
                 Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event."""
-        # allowedEmotions = {
-        #                   "type": "string",
-        #                   "description": "What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?"
-        #                   }
-        # if forcedEmotions:
-        #     allowedEmotions['enum'] = forcedEmotions
-        #     print('Forcing emotions: ', forcedEmotions)
+        
+        if forcedEmotions:
+            print('Forcing emotions: ', forcedEmotions)
 
 
         chat_completion = openai.beta.chat.completions.parse(
@@ -138,7 +136,7 @@ class SynthiaNova:
                     'content': dedent(fullPrompt.strip('\n'))
                 }
             ],
-            response_format=FreeMemory
+            response_format=getFreeMemoryClass(forcedEmotions)
         )
 
         response_message = chat_completion.choices[0].message
@@ -153,10 +151,6 @@ class SynthiaNova:
                     event_description = event_description[0].lower() + event_description[1:]
                 event_description = 'When I was ' + str(age) + ', ' + event_description
             full_event = event_description + ' ' + impact
-            
-            # if forcedEmotions and response_message.parsed.emotion not in forcedEmotions:
-            #     print('FAILURE TO ABIDE: ', forcedEmotions, response_message.parsed.emotion)
-            #     sys.exit(1)
 
             return full_event, response_message.parsed.emotion
         else:

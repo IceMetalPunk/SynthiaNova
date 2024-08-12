@@ -6,17 +6,21 @@ class SubjectBasedMemory(BaseModel):
     age: int = Field(description="How old were you when this event happened, in years? Pick an age between 10 and 29.")
     impact: str = Field(description="Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\".")
 
-class FreeMemory(BaseModel):
-    emotion: str = Field(description="What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?")
-    age: int = Field(description="How old were you when this event happened, in years? Pick an age between 10 and 29.")
-    event_description: str = Field(description="Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.")
-    impact: str = Field(description="Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\".")
-    # def __init__(self, *args, allowedEmotions: list[str] = None, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     if allowedEmotions:
-    #         self.emotion = Enum('EmotionEnum', {k:k for k in allowedEmotions}, type=str)
-    #     else:
-    #         self.emotion = Field(description="What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?", type=str)
+def getFreeMemoryClass(allowedEmotions: list[str] = None):
+    class FreeMemory(BaseModel):
+        emotion: str = Field(description="What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?")
+        age: int = Field(description="How old were you when this event happened, in years? Pick an age between 10 and 29.")
+        event_description: str = Field(description="Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.")
+        impact: str = Field(description="Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\".")
+
+        @classmethod
+        def model_json_schema(cls, *args, **kwargs):
+            value = super(FreeMemory, cls).model_json_schema(*args, **kwargs)
+            if allowedEmotions:
+                value['properties']['emotion']['enum'] = allowedEmotions
+            return value
+
+    return FreeMemory
 
 class VibeEnum(str, Enum):
     casual_and_fun = "casual_and_fun"
