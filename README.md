@@ -2,7 +2,7 @@
 ### An AI songwriter with personality
 *(The song below was entirely written by Synthia Nova, and performed by Suno AI. Read below for more info!)*
 
-https://github.com/IceMetalPunk/SynthiaNova/assets/5912749/e6f25e96-a1f0-48d0-b9a3-01fa688cad3d
+https://github.com/user-attachments/assets/a5521c9b-0ead-4715-b732-e8e160b123ed
 
 #### Installation
 First, clone the repo into an empty directory and install the Python requirements:
