@@ -144,7 +144,6 @@ class SynthiaNova:
         if response_message.parsed:
             event_description = response_message.parsed.event_description
             print('Chosen emotion: ' + response_message.parsed.emotion)
-            print('Sentiment: ' + response_message.parsed.sentiment)
             age = response_message.parsed.age
             impact = response_message.parsed.impact
             if not str(age) in event_description and not num2words(age) in event_description:
