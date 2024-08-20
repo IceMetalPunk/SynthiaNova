@@ -9,6 +9,7 @@ class SubjectBasedMemory(BaseModel):
 def getFreeMemoryClass(allowedEmotions: list[str] = None):
     class FreeMemory(BaseModel):
         emotion: str = Field(description="What emotion is associated with this memory? Joy, sadness, anger, fear, love, etc.?")
+        sentiment: str = Field(description="What sentiment is the chosen emotion? Positive or negative? Make sure you stick to that sentiment, theme, and feeling throughout your description of the memory! Don't put a positive spin on a negative emotion, for instance. Keep the sentiment throughout!")
         age: int = Field(description="How old were you when this event happened, in years? Pick an age between 10 and 29.")
         event_description: str = Field(description="Explain what happened, in a single paragraph, in detail, as specific as possible. It should be detailed and specific enough to inspire a song, but no more than 5 or 6 sentences maximum.")
         impact: str = Field(description="Describe, in one or two sentences maximum, how this event made you feel. Begin with the words \"I felt\".")
@@ -18,6 +19,7 @@ def getFreeMemoryClass(allowedEmotions: list[str] = None):
             value = super(FreeMemory, cls).model_json_schema(*args, **kwargs)
             if allowedEmotions:
                 value['properties']['emotion']['enum'] = allowedEmotions
+            value['properties']['sentiment']['enum'] = ['positive', 'negative']
             return value
 
     return FreeMemory
