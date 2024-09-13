@@ -37,7 +37,7 @@ class SynthiaNova:
         return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
 
     def __get_topic_request_prompt(self, initial_memory, emotion):
-        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life. Make sure it emphasizes the feeling of " + emotion + "!"
+        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious topic."
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -224,9 +224,9 @@ class SynthiaNova:
         sections = [re.sub('\n+', r'\n', x).strip() for x in sections if x]
 
         if has_bridge:
-            lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower() == 'chorus')
+            lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower().startswith('chorus'))
             if lastChorusIndex > 0:
-                previousSectionIndex = max(i for i, sType in enumerate(sectionTypes) if i < lastChorusIndex and sType.lower() != 'chorus')
+                previousSectionIndex = max(i for i, sType in enumerate(sectionTypes) if i < lastChorusIndex and not sType.lower().startswith('chorus'))
                 if sectionTypes[previousSectionIndex].lower() == 'verse':
                     sectionTypes[previousSectionIndex] = 'Bridge'
                     if lastChorusIndex == 1:
@@ -250,24 +250,29 @@ class SynthiaNova:
         if 'choruses' not in song and 'chorus' in song:
             song['choruses'] = [song['chorus']]
         choruses = sorted(set(song['choruses']), reverse=True, key=len)
+        choruses_unsorted = sorted(set(song['choruses']), key=song['choruses'].index)
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         lyrics = lyrics.strip()
         parsed = lyrics
         for (i, chorusRaw) in enumerate(choruses):
             chorus = chorusRaw.strip()
-            parsed = parsed.replace(chorus, '[Chorus]\n~~~~~~~~~~' + str(i) + '~~~~~~~~~~\n\n[Verse]').strip()
+            chorus_numbering = ''
+            if len(choruses) > 1:
+                index = choruses_unsorted.index(chorusRaw)
+                chorus_numbering = f" {index+1}" if len(choruses) > 1 else ''
+            parsed = parsed.replace(chorus, f"[Chorus{chorus_numbering}]\n~~~~~~~~~~{i}~~~~~~~~~~\n\n[Verse]").strip()
         parsed = re.sub('(\[Chorus\]\n){2,}', r'[Chorus]\n', parsed)
         for (i, chorusRaw) in enumerate(choruses):
             chorus = chorusRaw.strip()
             parsed = parsed.replace('~~~~~~~~~~' + str(i) + '~~~~~~~~~~', chorus).strip()
-        if not parsed.startswith('[Chorus]'):
+        if not parsed.startswith('[Chorus'):
             parsed = '[Verse]\n' + parsed
         parsed = re.sub('\n +', r'\n', parsed)
         parsed = re.sub('\n{3,}', r'\n\n', parsed)
         parsed = re.sub('\]\n\s*\n+', r']\n', parsed).strip()
         parsed = re.sub('\[Verse\]\s*$', '', parsed)
         parsed = re.sub('(?<!\n)\[', r'\n\n[', parsed)
-        parsed = re.sub('\[Verse\]\n\[Chorus\]', '[Chorus]', parsed)
+        parsed = re.sub('\[Verse\]\n\[Chorus( [0-9]+)?\]', r"[Chorus\1]", parsed)
         parsed = self.__format_as_quatrains(parsed, has_bridge)
         return parsed.strip()
 
