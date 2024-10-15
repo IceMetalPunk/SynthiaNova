@@ -31,7 +31,7 @@ class VibeEnum(str, Enum):
         return self.value
 
 class MemoryTopic(BaseModel):
-    vibe: VibeEnum = Field(description="The overall feeling of the song. Are you writing a casual and fun song to dance to, or a deep and personal song to move the listener? About 50%% of your songs should be casual and 50%% should be personal.")
+    vibe: VibeEnum = Field(description="The overall feeling of the song. Are you writing a casual and fun song to dance to, or a deep and personal song to move the listener to experience an emotion? About 50%% of your songs should be casual and 50%% should be personal.")
     subject: str = Field(description="The topic of the song, in one short sentence. It doesn't have to be serious, it can be light-hearted and fun, too, about things that make you happy, for instance. But if it is serious, don't try to put a fake positive spin on it, either. It should be clearly inspired by that memory.")
     @classmethod
     def model_json_schema(cls, *args, **kwargs):

@@ -34,10 +34,10 @@ class SynthiaNova:
         return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a 4 to 5 minute long song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
-        return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
+        return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs, other times they're emotional. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
 
     def __get_topic_request_prompt(self, initial_memory, emotion):
-        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your life. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious topic."
+        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your specific life experiences. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious topic."
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -191,7 +191,12 @@ class SynthiaNova:
         if response_message.parsed:
             jsonObj = response_message.parsed.model_dump()
             jsonObj['subject'] = subject
-            songtitle = response_message.parsed.title
+            raw_songtitle = response_message.parsed.title
+            songtitle = raw_songtitle
+            collisionOffset = 2
+            while songtitle in self.songs.keys():
+                songtitle = f"{raw_songtitle} {collisionOffset}"
+                collisionOffset += 1
             self.songs[songtitle] = jsonObj
             return songtitle
         else:
@@ -224,7 +229,7 @@ class SynthiaNova:
         sections = [re.sub('\n+', r'\n', x).strip() for x in sections if x]
 
         if has_bridge:
-            lastChorusIndex = max(i for i, sType in enumerate(sectionTypes) if sType.lower().startswith('chorus'))
+            lastChorusIndex = max((i for i, sType in enumerate(sectionTypes) if sType.lower().startswith('chorus')), default = -1)
             if lastChorusIndex > 0:
                 previousSectionIndex = max(i for i, sType in enumerate(sectionTypes) if i < lastChorusIndex and not sType.lower().startswith('chorus'))
                 if sectionTypes[previousSectionIndex].lower() == 'verse':
