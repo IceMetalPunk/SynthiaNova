@@ -36,8 +36,11 @@ class SynthiaNova:
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs, other times they're emotional. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
 
-    def __get_topic_request_prompt(self, initial_memory, emotion):
-        return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your specific life experiences. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious topic."
+    def __get_topic_request_prompt(self, initial_memory, emotion, forcedTopic: str = None):
+        if forcedTopic:
+            return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a good song subject based on that memory? It should be either relatable and interesting, or specific to the memory, depending on the mood. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise. Pick a subject for the new song inspired by that memory. Use the following topic as a guideline: \"" + forcedTopic + "\". Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious or otherwise unhappy topic."
+        else:
+            return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your specific life experiences. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious or otherwise unhappy topic."
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -80,25 +83,25 @@ class SynthiaNova:
             print(response_message.refusal)
             return None
 
-    def __imagine_inspiring_memory(self, forcedEmotions: List[str] = None, excluded_memories: List[str] = []):
-        test_memory, emotion = self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories)
+    def __imagine_inspiring_memory(self, forcedEmotions: List[str] = None, forcedTopic: str = None, excluded_memories: List[str] = []):
+        test_memory, emotion = self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories, forcedTopic=forcedTopic)
         print('Thinking back to make sure I didn\'t already write about this yet...')
         match = self.memories.recall(test_memory, 1, True)
         if len(match) > 0:
             (text, relevance) = match[0]
             if relevance >= 0:
                 print('Too similar to a previous memory. Thinking some more....')
-                return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories + [text])
+                return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories + [text], forcedTopic=forcedTopic)
         contradiction = self.memories.does_contradict(test_memory)
         if contradiction[0]:
             print('Whoops, misremembered! Let me think some more...')
             print("System: Conflicting memories:")
             print("New: " + test_memory)
             print("Existing: " + contradiction[1])
-            return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories)
+            return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories, forcedTopic=forcedTopic)
         return test_memory, emotion
 
-    def __imagine_free_memory(self, forcedEmotions: List[str] = None, excluded_memories: List[str] = None):
+    def __imagine_free_memory(self, forcedEmotions: List[str] = None, excluded_memories: List[str] = None, forcedTopic: str = None):
         ages = self.memories.get_memory_ages()
         agePrompt = ''
         exclusionPrompt = ''
@@ -113,9 +116,9 @@ class SynthiaNova:
 
         fullPrompt = f"""{self.__get_base_personality_prompt()}
                 
-                You've been asked to write a new song. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. All emotions, even negative ones, are valid inspiration! Emotional range across both positive and negative is the key to good songwriting.
+                You've been asked to write a new song{' about the topic of "' + forcedTopic + '"' if forcedTopic else ''}. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. All emotions, even negative ones, are valid inspiration! Emotional range across both positive and negative is the key to good songwriting.
             
-                You can choose any event, from your childhood at age 10 up through the present day. For reference:
+                You can choose any event{' relevant to that topic' if forcedTopic else ''}, from your childhood at age 10 up through the present day. For reference:
                 {agePrompt}
             
                 {exclusionPrompt}
@@ -157,11 +160,11 @@ class SynthiaNova:
             print(response_message.refusal)
             return None
         
-    def __get_topic_from_memory(self, initial_memory, emotion):
+    def __get_topic_from_memory(self, initial_memory, emotion, forcedTopic: str = None):
         chat_completion = openai.beta.chat.completions.parse(
             model=self.model,
             messages=[
-                {'role': 'system', 'content': self.__get_topic_request_prompt(initial_memory, emotion)}
+                {'role': 'system', 'content': self.__get_topic_request_prompt(initial_memory, emotion, forcedTopic)}
             ],
             response_format=MemoryTopic
         )
@@ -176,7 +179,7 @@ class SynthiaNova:
             print(response_message.refusal)
             return None
 
-    def __write_song_from(self, subject, vibe, initial_memory, memories, emotion):
+    def __write_song_from(self, subject, vibe, initial_memory, memories, emotion, forcedTopic: str = None):
         genres = self.__get_existing_genres()
         chat_completion = openai.beta.chat.completions.parse(
             model=self.model,
@@ -203,17 +206,17 @@ class SynthiaNova:
             print(response_message.refusal)
             return None
 
-    def write_song(self, forcedEmotions=None):
+    def write_song(self, forcedEmotions=None, forcedTopic=None):
         print('Deciding on a memory to inspire my new song...')
-        initial_memory, emotion = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions)
+        initial_memory, emotion = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, forcedTopic=forcedTopic)
         self.memories.add(initial_memory)
         self.memories.save()
         print('Deciding on a topic inspired by that memory...')
-        subject, vibe = self.__get_topic_from_memory(initial_memory, emotion)
+        subject, vibe = self.__get_topic_from_memory(initial_memory, emotion, forcedTopic)
         print('Thinking of other memories that fit the topic...')
         recalled = self.memories.recall(subject)
         print('Alright, now I\'ll get to writing the song! ...')
-        title = self.__write_song_from(subject, vibe, initial_memory, recalled, emotion)
+        title = self.__write_song_from(subject, vibe, initial_memory, recalled, emotion, forcedTopic)
         return (title, [initial_memory] + recalled)
     
     def __get_existing_genres(self):
