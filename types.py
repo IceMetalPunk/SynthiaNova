@@ -36,8 +36,9 @@ class MemoryTopic(BaseModel):
     @classmethod
     def model_json_schema(cls, *args, **kwargs):
         value = super(MemoryTopic, cls).model_json_schema(*args, **kwargs)
-        value['properties']['vibe']['anyOf'] = value['properties']['vibe']['allOf']
-        value['properties']['vibe'].pop('allOf', None)
+        if 'allOf' in value['properties']['vibe']:
+            value['properties']['vibe']['anyOf'] = value['properties']['vibe']['allOf']
+            value['properties']['vibe'].pop('allOf', None)
         return value
 
 class SongInfo(BaseModel):

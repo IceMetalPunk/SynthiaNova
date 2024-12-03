@@ -62,7 +62,7 @@ class SynthiaNova:
             event_description = response_message.parsed.event_description
             age = response_message.parsed.age
             impact = response_message.parsed.impact
-            if not str(age) in event_description and re.search(f"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
+            if not str(age) in event_description and re.search(fr"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
                 if event_description[0:2] != 'I ':
                     event_description = event_description[0].lower() + event_description[1:]
                 event_description = 'When I was ' + str(age) + ', ' + event_description
@@ -224,11 +224,11 @@ class SynthiaNova:
 
     def __format_as_quatrains(self, lyrics, has_bridge = False):
         lyrics = lyrics.strip()
-        sectionTypes = re.findall('\[(.*?)\]', lyrics)
+        sectionTypes = re.findall(r'\[(.*?)\]', lyrics)
         if sectionTypes[-1].lower() == 'verse':
             sectionTypes[-1] = 'Outro'
 
-        sections = re.split('\[.*?\]', lyrics)
+        sections = re.split(r'\[.*?\]', lyrics)
         sections = [re.sub('\n+', r'\n', x).strip() for x in sections if x]
 
         if has_bridge:
@@ -269,7 +269,7 @@ class SynthiaNova:
                 index = choruses_unsorted.index(chorusRaw)
                 chorus_numbering = f" {index+1}" if len(choruses) > 1 else ''
             parsed = parsed.replace(chorus, f"[Chorus{chorus_numbering}]\n~~~~~~~~~~{i}~~~~~~~~~~\n\n[Verse]").strip()
-        parsed = re.sub('(\[Chorus\]\n){2,}', r'[Chorus]\n', parsed)
+        parsed = re.sub(r'(\[Chorus\]\n){2,}', r'[Chorus]\n', parsed)
         for (i, chorusRaw) in enumerate(choruses):
             chorus = chorusRaw.strip()
             parsed = parsed.replace('~~~~~~~~~~' + str(i) + '~~~~~~~~~~', chorus).strip()
@@ -277,10 +277,10 @@ class SynthiaNova:
             parsed = '[Verse]\n' + parsed
         parsed = re.sub('\n +', r'\n', parsed)
         parsed = re.sub('\n{3,}', r'\n\n', parsed)
-        parsed = re.sub('\]\n\s*\n+', r']\n', parsed).strip()
-        parsed = re.sub('\[Verse\]\s*$', '', parsed)
-        parsed = re.sub('(?<!\n)\[', r'\n\n[', parsed)
-        parsed = re.sub('\[Verse\]\n\[Chorus( [0-9]+)?\]', r"[Chorus\1]", parsed)
+        parsed = re.sub(r'\]\n\s*\n+', r']\n', parsed).strip()
+        parsed = re.sub(r'\[Verse\]\s*$', '', parsed)
+        parsed = re.sub(r'(?<!\n)\[', r'\n\n[', parsed)
+        parsed = re.sub(r'\[Verse\]\n\[Chorus( [0-9]+)?\]', r"[Chorus\1]", parsed)
         parsed = self.__format_as_quatrains(parsed, has_bridge)
         return parsed.strip()
 
