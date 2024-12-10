@@ -40,6 +40,8 @@ class MemoryTopic(BaseModel):
             value['properties']['vibe']['anyOf'] = value['properties']['vibe']['allOf']
             value['properties']['vibe'].pop('allOf', None)
         return value
+class MoodInfo(BaseModel):
+    emotion: str = Field(description="An emotion that best fits the mood the song is going for.")
 
 class SongInfo(BaseModel):
     genre_and_style: str = Field(description="The genre of the song, as well as any stylistic choices, i.e. 'dark pop', 'upbeat electronic', 'aggressive heavy metal', etc. Remember that you can choose any genre, so be eclectic and creative! But only describe the genres as concisely as possible, with no extra words. For example, 'dark pop, electronic' or 'industrial metal, electropop' are both valid, but do not say 'synthpop with indie rock elements'; that would be better written as 'synthpop, indie rock'.")

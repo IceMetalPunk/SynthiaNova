@@ -5,7 +5,7 @@ import openai
 import json
 import re
 import sys
-from .types import MemoryTopic, SongInfo, SubjectBasedMemory, getFreeMemoryClass
+from .types import MemoryTopic, MoodInfo, SongInfo, SubjectBasedMemory, getFreeMemoryClass
 from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
@@ -206,8 +206,26 @@ class SynthiaNova:
             print(response_message.refusal)
             return None
 
-    def write_song(self, forcedEmotions=None, forcedTopic=None):
+    def __get_emotion_from_mood(self, mood: str) -> str:
+        chat_completion = openai.beta.chat.completions.parse(
+            model=self.model,
+            messages=[
+                {'role': 'system', 'content': self.__get_base_personality_prompt() + ' To inspire your next song, please start by choosing an emotion that fits the following mood: ' + mood + '. Choose a single emotion that most fits that mood, which will be the emotion carried through the song.'}
+            ],
+            response_format=MoodInfo
+        )
+
+        response_message = chat_completion.choices[0].message
+
+        if response_message.parsed:
+            jsonObj = response_message.parsed.model_dump()
+            print(f"From the mood {mood}, the emotion is {jsonObj['emotion']}")
+            return jsonObj['emotion']
+            
+    def write_song(self, forcedEmotions=None, forcedTopic=None, forcedMood=None):
         print('Deciding on a memory to inspire my new song...')
+        if forcedMood is not None:
+            forcedEmotions = [self.__get_emotion_from_mood(forcedMood)]
         initial_memory, emotion = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, forcedTopic=forcedTopic)
         self.memories.add(initial_memory)
         self.memories.save()
