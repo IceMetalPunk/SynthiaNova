@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 load_dotenv()
 from synthianova import SynthiaNova
 
+# TODO: Update thie example to include all the latest features, including the rich.live/rich.panel display!
 if __name__ == '__main__':
     apiKey = os.getenv('OPENAI_KEY')
     synthia = SynthiaNova(apiKey)

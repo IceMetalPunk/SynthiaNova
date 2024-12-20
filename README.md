@@ -1,6 +1,9 @@
 # Synthia Nova
 ### An AI songwriter with personality
-*(The song below was entirely written by Synthia Nova, and performed by Suno AI. Read below for more info!)*
+
+***Note: This README is out of date and requires rewriting. TODO.***
+
+*(The song below was entirely written by Synthia Nova, and performed by Suno AI 3.5. Read below for more info!)*
 
 https://github.com/user-attachments/assets/a5521c9b-0ead-4715-b732-e8e160b123ed
 

@@ -6,6 +6,7 @@ import json
 import re
 import sys
 from .types import MemoryTopic, MoodInfo, SongInfo, SubjectBasedMemory, getFreeMemoryClass
+from synthia_nova.display_utils import SYNTHIA_PANEL
 from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
@@ -70,34 +71,34 @@ class SynthiaNova:
 
             contradiction = self.memories.does_contradict(full_event)
             if contradiction[0]:
-                print('Whoops, misremembered! Let me think some more...')
-                print("System: Conflicting memories:")
-                print("New: " + full_event)
-                print("Existing: " + contradiction[1])
+                SYNTHIA_PANEL.update(
+                    synthiaText = 'Whoops, misremembered! Let me think some more...',
+                    systemText = 'Conflicting memories:\nNew: ' + full_event + '\n\nExisting: ' + contradiction[1]
+                )
                 return self.__imagine_memory(subject, vibe)
             
             self.memories.add(full_event)
             self.memories.save()
             return full_event
         else:
-            print(response_message.refusal)
+            SYNTHIA_PANEL.update(systemText = response_message.refusal)
             return None
 
     def __imagine_inspiring_memory(self, forcedEmotions: List[str] = None, forcedTopic: str = None, excluded_memories: List[str] = []):
         test_memory, emotion = self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories, forcedTopic=forcedTopic)
-        print('Thinking back to make sure I didn\'t already write about this yet...')
+        SYNTHIA_PANEL.update(synthiaText = 'Thinking back to make sure I didn\'t already write about this yet...')
         match = self.memories.recall(test_memory, 1, True)
         if len(match) > 0:
             (text, relevance) = match[0]
             if relevance >= 0:
-                print('Too similar to a previous memory. Thinking some more....')
+                SYNTHIA_PANEL.update(synthiaText = 'That\'s too similar to a previous memory. Thinking some more...')
                 return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories + [text], forcedTopic=forcedTopic)
         contradiction = self.memories.does_contradict(test_memory)
         if contradiction[0]:
-            print('Whoops, misremembered! Let me think some more...')
-            print("System: Conflicting memories:")
-            print("New: " + test_memory)
-            print("Existing: " + contradiction[1])
+            SYNTHIA_PANEL.update(
+                synthiaText = 'Whoops, misremembered! Let me think some more...',
+                systemText = 'Conflicting memories:\n\nNew: ' + test_memory + '\n\nExisting: ' + contradiction[1]
+            )
             return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories, forcedTopic=forcedTopic)
         return test_memory, emotion
 
@@ -128,8 +129,7 @@ class SynthiaNova:
                 Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event."""
         
         if forcedEmotions:
-            print('Forcing emotions: ', forcedEmotions)
-
+            SYNTHIA_PANEL.update(systemText = 'Forcing emotions: ' + json.dumps(forcedEmotions))
 
         chat_completion = openai.beta.chat.completions.parse(
             model=self.model,
@@ -146,7 +146,7 @@ class SynthiaNova:
 
         if response_message.parsed:
             event_description = response_message.parsed.event_description
-            print('Chosen emotion: ' + response_message.parsed.emotion)
+            SYNTHIA_PANEL.update(systemText = 'Chosen emotion: ' + response_message.parsed.emotion)
             age = response_message.parsed.age
             impact = response_message.parsed.impact
             if not str(age) in event_description and not num2words(age) in event_description:
@@ -157,7 +157,7 @@ class SynthiaNova:
 
             return full_event, response_message.parsed.emotion
         else:
-            print(response_message.refusal)
+            SYNTHIA_PANEL.update(systemText = response_message.refusal)
             return None
         
     def __get_topic_from_memory(self, initial_memory, emotion, forcedTopic: str = None):
@@ -176,7 +176,7 @@ class SynthiaNova:
             subject = response_message.parsed.subject
             return (subject, vibe)
         else:
-            print(response_message.refusal)
+            SYNTHIA_PANEL.update(systemText = response_message.refusal)
             return None
 
     def __write_song_from(self, subject, vibe, initial_memory, memories, emotion, forcedTopic: str = None):
@@ -203,7 +203,7 @@ class SynthiaNova:
             self.songs[songtitle] = jsonObj
             return songtitle
         else:
-            print(response_message.refusal)
+            SYNTHIA_PANEL.update(systemText = response_message.refusal)
             return None
 
     def __get_emotion_from_mood(self, mood: str) -> str:
@@ -219,21 +219,21 @@ class SynthiaNova:
 
         if response_message.parsed:
             jsonObj = response_message.parsed.model_dump()
-            print(f"From the mood {mood}, the emotion is {jsonObj['emotion']}")
+            SYNTHIA_PANEL.update(synthiaText = f"Based on the mood {mood}, I've chosen the emotion {jsonObj['emotion']}")
             return jsonObj['emotion']
             
     def write_song(self, forcedEmotions=None, forcedTopic=None, forcedMood=None):
-        print('Deciding on a memory to inspire my new song...')
+        SYNTHIA_PANEL.update(synthiaText = 'Deciding on a memory to inspire my new song...')
         if forcedMood is not None:
             forcedEmotions = [self.__get_emotion_from_mood(forcedMood)]
         initial_memory, emotion = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, forcedTopic=forcedTopic)
         self.memories.add(initial_memory)
         self.memories.save()
-        print('Deciding on a topic inspired by that memory...')
+        SYNTHIA_PANEL.update(synthiaText = 'Deciding on a topic inspired by that memory...')
         subject, vibe = self.__get_topic_from_memory(initial_memory, emotion, forcedTopic)
-        print('Thinking of other memories that fit the topic...')
+        SYNTHIA_PANEL.update(synthiaText = 'Thinking of other memories that fit the topic...')
         recalled = self.memories.recall(subject)
-        print('Alright, now I\'ll get to writing the song! ...')
+        SYNTHIA_PANEL.update(synthiaText = 'Alright, now I\'ll get to writing the song! ...')
         title = self.__write_song_from(subject, vibe, initial_memory, recalled, emotion, forcedTopic)
         return (title, [initial_memory] + recalled)
     

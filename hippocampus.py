@@ -6,6 +6,7 @@ import json
 import os
 from num2words import num2words
 from torch import Tensor
+from .display_utils import SYNTHIA_PANEL
 model = SentenceTransformer('all-mpnet-base-v2')
 cross_ranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 contradiction_checker = CrossEncoder('cross-encoder/nli-deberta-v3-base')
@@ -76,16 +77,22 @@ class Memories:
             json.dump(self.memory_list, f, indent = 2)
         if len(self.memory_list) <= 0:
             return
+        
+        # TODO: Speed this up! It's 30-40 seconds on the existing memory bank!
+        SYNTHIA_PANEL.update(systemText = 'Re-encoding memories...')
         self.memory_embeddings = model.encode(self.memory_list)
         index = faiss.IndexFlatL2(self.memory_embeddings.shape[1])
         index.add(self.memory_embeddings)
+        # END TODO
         
+        SYNTHIA_PANEL.update(systemText = 'Saving memory database and reloading memories...')
         faiss.write_index(index, 'index_' + self.getCleanName() + '_memories')
         self.database = faiss.read_index('index_'+self.getCleanName()+'_memories')
+        SYNTHIA_PANEL.update(systemText = 'Memories saved.')
 
     def does_contradict(self, query: str):
         cross_inp = [(memory, query) for memory in self.memory_list]
-        print('Making sure I\'m not misremembering; this takes concentration, so please give me a minute...')
+        SYNTHIA_PANEL.update(synthiaText='Making sure I\'m not misremembering; this takes concentration, so please give me a minute...')
         cross_scores = contradiction_checker.predict(cross_inp)
 
         args = cross_scores.argmax(axis=1)
