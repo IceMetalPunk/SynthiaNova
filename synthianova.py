@@ -222,7 +222,7 @@ class SynthiaNova:
             SYNTHIA_PANEL.update(synthiaText = f"Based on the mood {mood}, I've chosen the emotion {jsonObj['emotion']}")
             return jsonObj['emotion']
             
-    def write_song(self, forcedEmotions=None, forcedTopic=None, forcedMood=None):
+    def write_song(self, forcedEmotions=None, forcedTopic=None, strictTopic: bool = False, forcedMood=None):
         SYNTHIA_PANEL.update(synthiaText = 'Deciding on a memory to inspire my new song...')
         if forcedMood is not None:
             forcedEmotions = [self.__get_emotion_from_mood(forcedMood)]
@@ -231,6 +231,8 @@ class SynthiaNova:
         self.memories.save()
         SYNTHIA_PANEL.update(synthiaText = 'Deciding on a topic inspired by that memory...')
         subject, vibe = self.__get_topic_from_memory(initial_memory, emotion, forcedTopic)
+        if strictTopic and forcedTopic:
+            subject = forcedTopic
         SYNTHIA_PANEL.update(synthiaText = 'Thinking of other memories that fit the topic...')
         recalled = self.memories.recall(subject)
         SYNTHIA_PANEL.update(synthiaText = 'Alright, now I\'ll get to writing the song! ...')
