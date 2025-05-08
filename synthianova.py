@@ -13,7 +13,8 @@ from synthia_nova.hippocampus import Memories
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    model: str = 'gpt-4o-2024-08-06'
+    # model: str = 'gpt-4o-2024-08-06'
+    model: str = 'gpt-4.1'
     songs: dict = {}
     memories = None
     def __init__(self, openAIKey: str, name: str = 'Synthia Nova', songFilename: str = 'songs.json'):
@@ -90,8 +91,8 @@ class SynthiaNova:
         match = self.memories.recall(test_memory, 1, True)
         if len(match) > 0:
             (text, relevance) = match[0]
-            if relevance >= 0:
-                SYNTHIA_PANEL.update(synthiaText = 'That\'s too similar to a previous memory. Thinking some more...')
+            if relevance >= 0.08:
+                SYNTHIA_PANEL.update(synthiaText = 'That\'s too similar to a previous memory (' + str(relevance) + '). Thinking some more...\n\n' + text + '\n\n' + test_memory)
                 return self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories + [text], forcedTopic=forcedTopic)
         contradiction = self.memories.does_contradict(test_memory)
         if contradiction[0]:
@@ -119,14 +120,14 @@ class SynthiaNova:
                 
                 You've been asked to write a new song{' about the topic of "' + forcedTopic + '"' if forcedTopic else ''}. Please recall a different event from your life that you can draw on as unique inspiration for your song. It should be something worth writing about, either because it's fun and relatable, or because it's deep and personal. It may be a happy memory, or it may evoke other emotions, like sadness or even anger. All emotions, even negative ones, are valid inspiration! Emotional range across both positive and negative is the key to good songwriting.
             
-                You can choose any event{' relevant to that topic' if forcedTopic else ''}, from your childhood at age 10 up through the present day. For reference:
+                You can choose any event{' relevant to that topic' if forcedTopic else ''}, from your childhood at age 10 up through the present day{' (unless the topic is about a specific age; then think about that age only)' if forcedTopic else ''}. For reference:
                 {agePrompt}
             
                 {exclusionPrompt}
                 
-                Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages. Vary your inspiration! Use the following form to write about the event.
+                Please try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same years and ages{' (unless the topic is about a specific age; then think about that age only)' if forcedTopic else ''}. Vary your inspiration! Use the following form to write about the event.
                 
-                Write about an event from any time in your life, from age 10 until present day, to inspire the song. It can involve just you, or your family, or your friends, or strangers: any relevant event."""
+                Write about an event from any time in your life, from age 10 until present day, to inspire the song{' (unless the topic is about a specific age; then think about that age only)' if forcedTopic else ''}. It can involve just you, or your family, or your friends, or strangers: any relevant event."""
         
         if forcedEmotions:
             SYNTHIA_PANEL.update(systemText = 'Forcing emotions: ' + json.dumps(forcedEmotions))
@@ -194,6 +195,8 @@ class SynthiaNova:
         if response_message.parsed:
             jsonObj = response_message.parsed.model_dump()
             jsonObj['subject'] = subject
+            jsonObj['main_inspiration'] = initial_memory
+            jsonObj['all_inspiring_memories'] = memories
             raw_songtitle = response_message.parsed.title
             songtitle = raw_songtitle
             collisionOffset = 2
@@ -324,4 +327,9 @@ class SynthiaNova:
         if not title in self.songs:
             return 'I don\'t have a song called "' + title + '".'
         subject = self.songs[title]['subject']
-        return 'The song "' + title + '" was inspired by the following events in my life:\n\n' + '\n\n'.join(self.memories.recall(subject))
+        if 'main_inspiration' in self.songs[title]:
+            explanation = '\n\n'.join([self.songs[title]['main_inspiration']] + self.songs[title]['all_inspiring_memories'])
+        else:
+            explanation = '\n\n'.join(self.memories.recall(subject))
+
+        return 'The song "' + title + '" was inspired by the following events in my life:\n\n' + explanation

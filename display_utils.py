@@ -28,8 +28,11 @@ class SynthiaNovaLayout:
         self.systemText = systemText if systemText is not None else self.systemText
         self.synthiaText = synthiaText if synthiaText is not None else self.synthiaText
 
-        self.layout['system'].visible = True
-        self.layout['system'].update(Panel(self.systemText, title = 'System'))
+        if self.systemText:
+            self.layout['system'].visible = True
+            self.layout['system'].update(Panel(self.systemText, title = 'System'))
+        else:
+            self.layout['system'].visible = False
 
         if self.synthiaText:
             self.layout['synthia'].visible = True
