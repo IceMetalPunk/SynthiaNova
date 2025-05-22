@@ -327,9 +327,11 @@ class SynthiaNova:
         if not title in self.songs:
             return 'I don\'t have a song called "' + title + '".'
         subject = self.songs[title]['subject']
+        memories = []
         if 'main_inspiration' in self.songs[title]:
-            explanation = '\n\n'.join([self.songs[title]['main_inspiration']] + self.songs[title]['all_inspiring_memories'])
+            memories = [self.songs[title]['main_inspiration']] + self.songs[title]['all_inspiring_memories']
         else:
-            explanation = '\n\n'.join(self.memories.recall(subject))
+            memories = self.memories.recall(subject)
+        memories = '\n\n'.join(set(memories))
 
-        return 'The song "' + title + '" was inspired by the following events in my life:\n\n' + explanation
+        return 'The song "' + title + '" was inspired by the following events in my life:\n\n' + memories
