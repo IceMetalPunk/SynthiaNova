@@ -4,6 +4,8 @@ import faiss
 import re
 import json
 import os
+from datetime import datetime, timedelta
+from enum import IntEnum
 from num2words import num2words
 from torch import Tensor
 from .display_utils import SYNTHIA_PANEL
@@ -11,11 +13,34 @@ model = SentenceTransformer('all-mpnet-base-v2')
 cross_ranker = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 contradiction_checker = CrossEncoder('cross-encoder/nli-deberta-v3-base')
 
+class Weekdays(IntEnum):
+    MONDAY=0
+    TUESDAY=1
+    WEDNESDAY=2
+    THURSDAY=3
+    FRIDAY=4
+    SATURDAY=5
+    SUNDAY=6
+
 def _ageNumsToStrings(maxAge):
     nums = ['zero']
     for i in range(1, maxAge + 1):
         nums.append(num2words(i))
     return nums
+
+def _get_current_date():
+    return datetime.now()
+def _get_next_weekday(weekday, startDate = None):
+    d = startDate if startDate else datetime.now()
+    days_ahead = (weekday - d.weekday()) % 7
+    return d + timedelta(days_ahead)
+def _get_next_release_date(releaseDays, startDate = None):
+    releaseDay = datetime(9999, 12, 31)
+    for weekday in releaseDays:
+        nextDay = _get_next_weekday(weekday, startDate)
+        if nextDay < releaseDay:
+            releaseDay = nextDay
+    return releaseDay
 
 class Memories:
     memory_list: list = list()
@@ -24,6 +49,7 @@ class Memories:
     memory_embeddings = None
     age = 29
     ageStrings = list()
+    releaseDays = [Weekdays.MONDAY, Weekdays.THURSDAY]
     def __init__(self, name: str = 'Synthia Nova', age = 29):
         self.name = name
         self.age = age
@@ -70,7 +96,7 @@ class Memories:
                         break
         return ageMap
 
-    def save(self, filename: str = None):
+    def save(self, filename: str = None, writeOnly: int = None):
         if filename is None:
             filename = self.getCleanName() + '_memories.json'
         with open(filename, 'w') as f:
@@ -78,16 +104,21 @@ class Memories:
         if len(self.memory_list) <= 0:
             return
         
-        # TODO: Speed this up! It's 30-40 seconds on the existing memory bank!
-        SYNTHIA_PANEL.update(systemText = 'Re-encoding memories...')
-        self.memory_embeddings = model.encode(self.memory_list)
-        index = faiss.IndexFlatL2(self.memory_embeddings.shape[1])
-        index.add(self.memory_embeddings)
-        # END TODO
+        if writeOnly is None:
+            SYNTHIA_PANEL.update(systemText = 'Re-encoding memories...')
+            self.memory_embeddings = model.encode(self.memory_list)
+            index = faiss.IndexFlatL2(self.memory_embeddings.shape[1])
+            index.add(self.memory_embeddings)
+        else:
+            SYNTHIA_PANEL.update(systemText = 'Adding memory to database...')
+            new_embedding = model.encode([self.memory_list[writeOnly]])
+            self.database.add(new_embedding)
+            index = self.database
         
         SYNTHIA_PANEL.update(systemText = 'Saving memory database and reloading memories...')
         faiss.write_index(index, 'index_' + self.getCleanName() + '_memories')
-        self.database = faiss.read_index('index_'+self.getCleanName()+'_memories')
+        # self.database = faiss.read_index('index_'+self.getCleanName()+'_memories')
+        self.database = index
         SYNTHIA_PANEL.update(systemText = 'Memories saved.')
 
     def does_contradict(self, query: str):
