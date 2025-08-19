@@ -79,7 +79,7 @@ class SynthiaNova:
                 return self.__imagine_memory(subject, vibe)
             
             self.memories.add(full_event)
-            self.memories.save()
+            self.memories.save(writeOnly = len(self.memories.memory_list) - 1)
             return full_event
         else:
             SYNTHIA_PANEL.update(systemText = response_message.refusal)
@@ -231,7 +231,7 @@ class SynthiaNova:
             forcedEmotions = [self.__get_emotion_from_mood(forcedMood)]
         initial_memory, emotion = self.__imagine_inspiring_memory(forcedEmotions=forcedEmotions, forcedTopic=forcedTopic)
         self.memories.add(initial_memory)
-        self.memories.save()
+        self.memories.save(writeOnly = len(self.memories.memory_list) - 1)
         SYNTHIA_PANEL.update(synthiaText = 'Deciding on a topic inspired by that memory...')
         subject, vibe = self.__get_topic_from_memory(initial_memory, emotion, forcedTopic)
         if strictTopic and forcedTopic:
