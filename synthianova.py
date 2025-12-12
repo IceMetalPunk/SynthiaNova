@@ -11,9 +11,13 @@ from num2words import num2words
 sys.path.append(os.path.abspath('..')) # You can remove this, I think. It's related to my file system organization.
 from synthia_nova.hippocampus import Memories
 
+class LLM_REFUSAL(Exception):
+    def __init__(self, refusalMessage):
+        super().__init__(f"GPT Refused: {refusalMessage}")
+
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    # model: str = 'gpt-4o-2024-08-06'
+    # model: str = 'gpt-5.2' # Better than 5.0, but still purple, nonsense poetry
     model: str = 'gpt-4.1'
     songs: dict = {}
     memories = None
@@ -31,8 +35,24 @@ class SynthiaNova:
     def set_model(self, model):
         self.model = model
 
+    def __prompt(self, systemMessage, requiredResponseClass = None):
+        chat_completion = openai.beta.chat.completions.parse(
+                model=self.model,
+                messages=[
+                    {'role': 'system', 'content': systemMessage}
+                ],
+                response_format=requiredResponseClass
+        )
+        
+        response_message = chat_completion.choices[0].message
+
+        if response_message.parsed:
+            return response_message.parsed
+        SYNTHIA_PANEL.update(systemText = response_message.refusal)
+        return LLM_REFUSAL(response_message.refusal)
+
     def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
-        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary focus of the song; but here are some other related memories you've talked about:\n\n"
+        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be mostly the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary focus of the song; but here are some other related memories you've talked about; don't try to force them all into the song, just let them be general inspiration to supplement the main memory:\n\n"
         return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a 4 to 5 minute long song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nRemember: pick different genres!\n\nUse the following form to write the song:'
 
     def __get_base_personality_prompt(self):
@@ -50,40 +70,33 @@ class SynthiaNova:
         for a in ages.items():
             agePrompt += f'You have written {a[1]} songs about events that happened when you were {a[0]} years old.\n'
 
-        chat_completion = openai.beta.chat.completions.parse(
-                model=self.model,
-                messages=[
-                    {'role': 'system', 'content': self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same year and age. Vary your inspiration! Use the following form to write about the event. Write about an event from any time in your life, from age 3 until present day, relevant to the given topic. It can involve just you, or your family, or your friends, or strangers: any relevant event."}
-                ],
-                response_format=SubjectBasedMemory
+        response = self.__prompt(
+            systemMessage=self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a " + vibe + " song about the following topic: " + subject + "\n\nPlease recall an event from your life related to this topic, so you can draw on that as inspiration for your song. You can choose any event, from your childhood at age 3 up through the present day, as long as it fits the topic. For reference:\n\n" + agePrompt + "\nPlease try to let your body of work take inspiration from your entire life equally, using different ages, not all from the same year and age. Vary your inspiration! Use the following form to write about the event. Write about an event from any time in your life, from age 3 until present day, relevant to the given topic. It can involve just you, or your family, or your friends, or strangers: any relevant event.",
+            requiredResponseClass=SubjectBasedMemory
         )
-
-        response_message = chat_completion.choices[0].message
-
-        if response_message.parsed:
-            event_description = response_message.parsed.event_description
-            age = response_message.parsed.age
-            impact = response_message.parsed.impact
-            if not str(age) in event_description and re.search(fr"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
-                if event_description[0:2] != 'I ':
-                    event_description = event_description[0].lower() + event_description[1:]
-                event_description = 'When I was ' + str(age) + ', ' + event_description
-            full_event = event_description + ' ' + impact
-
-            contradiction = self.memories.does_contradict(full_event)
-            if contradiction[0]:
-                SYNTHIA_PANEL.update(
-                    synthiaText = 'Whoops, misremembered! Let me think some more...',
-                    systemText = 'Conflicting memories:\nNew: ' + full_event + '\n\nExisting: ' + contradiction[1]
-                )
-                return self.__imagine_memory(subject, vibe)
-            
-            self.memories.add(full_event)
-            self.memories.save(writeOnly = len(self.memories.memory_list) - 1)
-            return full_event
-        else:
-            SYNTHIA_PANEL.update(systemText = response_message.refusal)
+        if isinstance(response, LLM_REFUSAL):
             return None
+
+        event_description = response.event_description
+        age = response.age
+        impact = response.impact
+        if not str(age) in event_description and re.search(fr"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
+            if event_description[0:2] != 'I ':
+                event_description = event_description[0].lower() + event_description[1:]
+            event_description = 'When I was ' + str(age) + ', ' + event_description
+        full_event = event_description + ' ' + impact
+
+        contradiction = self.memories.does_contradict(full_event)
+        if contradiction[0]:
+            SYNTHIA_PANEL.update(
+                synthiaText = 'Whoops, misremembered! Let me think some more...',
+                systemText = 'Conflicting memories:\nNew: ' + full_event + '\n\nExisting: ' + contradiction[1]
+            )
+            return self.__imagine_memory(subject, vibe)
+        
+        self.memories.add(full_event)
+        self.memories.save(writeOnly = len(self.memories.memory_list) - 1)
+        return full_event
 
     def __imagine_inspiring_memory(self, forcedEmotions: List[str] = None, forcedTopic: str = None, excluded_memories: List[str] = []):
         test_memory, emotion = self.__imagine_free_memory(forcedEmotions=forcedEmotions, excluded_memories=excluded_memories, forcedTopic=forcedTopic)
@@ -131,99 +144,70 @@ class SynthiaNova:
         
         if forcedEmotions:
             SYNTHIA_PANEL.update(systemText = 'Forcing emotions: ' + json.dumps(forcedEmotions))
-
-        chat_completion = openai.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {
-                    'role': 'system',
-                    'content': dedent(fullPrompt.strip('\n'))
-                }
-            ],
-            response_format=getFreeMemoryClass(forcedEmotions)
+            
+        response = self.__prompt(
+            systemMessage=dedent(fullPrompt.strip('\n')),
+            requiredResponseClass=getFreeMemoryClass(forcedEmotions)
         )
-
-        response_message = chat_completion.choices[0].message
-
-        if response_message.parsed:
-            event_description = response_message.parsed.event_description
-            SYNTHIA_PANEL.update(systemText = 'Chosen emotion: ' + response_message.parsed.emotion)
-            age = response_message.parsed.age
-            impact = response_message.parsed.impact
-            if not str(age) in event_description and not num2words(age) in event_description:
-                if event_description[0:2] != 'I ':
-                    event_description = event_description[0].lower() + event_description[1:]
-                event_description = 'When I was ' + str(age) + ', ' + event_description
-            full_event = event_description + ' ' + impact
-
-            return full_event, response_message.parsed.emotion
-        else:
-            SYNTHIA_PANEL.update(systemText = response_message.refusal)
+        if isinstance(response, LLM_REFUSAL):
             return None
+
+        event_description = response.event_description
+        SYNTHIA_PANEL.update(systemText = 'Chosen emotion: ' + response.emotion)
+        age = response.age
+        impact = response.impact
+        if not str(age) in event_description and not num2words(age) in event_description:
+            if event_description[0:2] != 'I ':
+                event_description = event_description[0].lower() + event_description[1:]
+            event_description = 'When I was ' + str(age) + ', ' + event_description
+        full_event = event_description + ' ' + impact
+
+        return full_event, response.emotion
         
     def __get_topic_from_memory(self, initial_memory, emotion, forcedTopic: str = None):
-        chat_completion = openai.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {'role': 'system', 'content': self.__get_topic_request_prompt(initial_memory, emotion, forcedTopic)}
-            ],
-            response_format=MemoryTopic
+        response = self.__prompt(
+            systemMessage=self.__get_topic_request_prompt(initial_memory, emotion, forcedTopic),
+            requiredResponseClass=MemoryTopic
         )
-
-        response_message = chat_completion.choices[0].message
-
-        if response_message.parsed:
-            vibe = response_message.parsed.vibe
-            subject = response_message.parsed.subject
-            return (subject, vibe)
-        else:
-            SYNTHIA_PANEL.update(systemText = response_message.refusal)
+        if isinstance(response, LLM_REFUSAL):
             return None
+
+        vibe = response.vibe
+        subject = response.subject
+        return (subject, vibe)
 
     def __write_song_from(self, subject, vibe, initial_memory, memories, emotion, forcedTopic: str = None):
         genres = self.__get_existing_genres()
-        chat_completion = openai.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {'role': 'system', 'content': self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, initial_memory, memories, genres or [], vibe or 'personal') + " Write all the information about the new song, including all the lyrics, the genre, etc. Focus strongly on the emotion of " + emotion + ", and make sure " + emotion + " is communciated throughout the song. The subject must be about: " + subject}
-            ],
-            response_format=SongInfo
+        response = self.__prompt(
+            systemMessage=self.__get_base_personality_prompt() + self.__get_song_request_prompt(subject, initial_memory, memories, genres or [], vibe or 'personal') + " Write all the information about the new song, including all the lyrics, the genre, etc. Focus strongly on the emotion of " + emotion + ", and make sure " + emotion + " is communciated throughout the song. The subject must be about: " + subject,
+            requiredResponseClass=SongInfo
         )
-
-        response_message = chat_completion.choices[0].message
-
-        if response_message.parsed:
-            jsonObj = response_message.parsed.model_dump()
-            jsonObj['subject'] = subject
-            jsonObj['main_inspiration'] = initial_memory
-            jsonObj['all_inspiring_memories'] = memories
-            raw_songtitle = response_message.parsed.title
-            songtitle = raw_songtitle
-            collisionOffset = 2
-            while songtitle in self.songs.keys():
-                songtitle = f"{raw_songtitle} {collisionOffset}"
-                collisionOffset += 1
-            self.songs[songtitle] = jsonObj
-            return songtitle
-        else:
-            SYNTHIA_PANEL.update(systemText = response_message.refusal)
+        if isinstance(response, LLM_REFUSAL):
             return None
 
+        jsonObj = response.model_dump()
+        jsonObj['subject'] = subject
+        jsonObj['main_inspiration'] = initial_memory
+        jsonObj['all_inspiring_memories'] = memories
+        raw_songtitle = response.title
+        songtitle = raw_songtitle
+        collisionOffset = 2
+        while songtitle in self.songs.keys():
+            songtitle = f"{raw_songtitle} {collisionOffset}"
+            collisionOffset += 1
+        self.songs[songtitle] = jsonObj
+        return songtitle
+
     def __get_emotion_from_mood(self, mood: str) -> str:
-        chat_completion = openai.beta.chat.completions.parse(
-            model=self.model,
-            messages=[
-                {'role': 'system', 'content': self.__get_base_personality_prompt() + ' To inspire your next song, please start by choosing an emotion that fits the following mood: ' + mood + '. Choose a single emotion that most fits that mood, which will be the emotion carried through the song.'}
-            ],
-            response_format=MoodInfo
+        response = self.__prompt(
+            systemMessage=self.__get_base_personality_prompt() + ' To inspire your next song, please start by choosing an emotion that fits the following mood: ' + mood + '. Choose a single emotion that most fits that mood, which will be the emotion carried through the song.',
+            requiredResponseClass=MoodInfo
         )
+        if isinstance(response, LLM_REFUSAL):
+            return None
 
-        response_message = chat_completion.choices[0].message
-
-        if response_message.parsed:
-            jsonObj = response_message.parsed.model_dump()
-            SYNTHIA_PANEL.update(synthiaText = f"Based on the mood {mood}, I've chosen the emotion {jsonObj['emotion']}")
-            return jsonObj['emotion']
+        SYNTHIA_PANEL.update(synthiaText = f"Based on the mood {mood}, I've chosen the emotion {response.emotion}")
+        return response.emotion
             
     def write_song(self, forcedEmotions=None, forcedTopic=None, strictTopic: bool = False, forcedMood=None):
         SYNTHIA_PANEL.update(synthiaText = 'Deciding on a memory to inspire my new song...')
