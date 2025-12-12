@@ -77,7 +77,6 @@ class Memories:
 
     def get_memory_ages(self):
         ageMap = dict()
-        memories = self.memory_list.copy()
         for memory in self.memory_list:
             match = re.search(r'\d+', memory)
             if match:
@@ -117,7 +116,6 @@ class Memories:
         
         SYNTHIA_PANEL.update(systemText = 'Saving memory database and reloading memories...')
         faiss.write_index(index, 'index_' + self.getCleanName() + '_memories')
-        # self.database = faiss.read_index('index_'+self.getCleanName()+'_memories')
         self.database = index
         SYNTHIA_PANEL.update(systemText = 'Memories saved.')
 
@@ -132,7 +130,7 @@ class Memories:
                 return True, self.memory_list[i]
         return False, None
 
-    def recall(self, query: str, count: int = 5, returnScore: bool = False):
+    def recall(self, query: str, count: int = 3, returnScore: bool = False):
         ''' Note: Will only search through the last saved memories, so save before searching! '''
         if len(self.memory_list) <= 0 or self.database is None:
             return list()
