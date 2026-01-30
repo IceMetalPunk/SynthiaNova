@@ -229,6 +229,41 @@ class SynthiaNova:
     def __get_existing_genres(self):
         return [x['genre_and_style'].split('.')[0] for x in self.songs.values()]
 
+    def __determine_section_lines(self, section):
+        '''Lines that are just backing vocals get merged into the previous or next lines, to avoid quatrain space breaking.'''
+        naive_split = [line.strip() for line in section.split('\n')]
+        result = []
+        wasBgVocal = False
+        for line in naive_split:
+            bgline = re.match(r'^\((.*?)\)$', line)
+            isBgVocal = bgline and not ')' in bgline.group(1) and len(line) < 17 # Long lines are likely bgvocals but part of the quatrain
+            # Put backing vocals at end of previous line, or if they're the first line in a section, at beginning of next line. Append all else.
+            if (isBgVocal and len(result) > 0) or (not isBgVocal and wasBgVocal):
+                result[-1] += ' ' + line
+                wasBgVocal = False
+            elif isBgVocal:
+                result.append(line)
+                wasBgVocal = True
+            else:
+                result.append(line)
+                wasBgVocal = False
+
+        return result
+    
+    def __label_prechoruses(self, lyrics):
+        # print(lyrics)
+        pattern = re.compile(r'((?:^|\n).+?)\n\[Chorus.*?\1\n\[Chorus', re.IGNORECASE | re.MULTILINE | re.DOTALL)
+        m = re.search(pattern, lyrics)
+        if m:
+            prechorus = m.group(1).strip()
+            if not prechorus.lower().startswith('[chorus'):
+                print(prechorus)
+                lyrics = lyrics.replace(f"{prechorus}\n\n[Chorus", f"\n[Pre-Chorus]\n{prechorus}\n\n[Chorus")
+
+        lyrics = re.sub(r'\[Pre-Chorus\]\n\[.*?\]', '[Pre-Chorus]', lyrics, 0, re.DOTALL | re.MULTILINE)
+        lyrics = re.sub(r'\n{3,}', r'\n\n', lyrics, re.DOTALL | re.MULTILINE).strip()
+        return lyrics
+
     def __format_as_quatrains(self, lyrics, has_bridge = False):
         lyrics = lyrics.strip()
         sectionTypes = re.findall(r'\[(.*?)\]', lyrics)
@@ -247,7 +282,7 @@ class SynthiaNova:
                     if lastChorusIndex == 1:
                         sectionTypes[previousSectionIndex] = 'Intro'
         for l, section in enumerate(sections):
-            lines = section.split('\n')
+            lines = self.__determine_section_lines(section)
             inserted = 0
             for i in range(4, len(lines), 4):
                 lines.insert(i + inserted, '')
@@ -258,7 +293,7 @@ class SynthiaNova:
                 sections[l] = '\n'.join([f"[Verse]"] + lines) + '\n'
             else:
                 sections[l] = '\n'.join([f"[{sectionTypes[l]}]"] + lines) + '\n'
-        return '\n'.join(sections)
+        return self.__label_prechoruses('\n'.join(sections))
 
     def __process_song(self, song):
         lyrics = song['lyrics'].strip()
