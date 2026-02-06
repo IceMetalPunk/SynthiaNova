@@ -251,13 +251,11 @@ class SynthiaNova:
         return result
     
     def __label_prechoruses(self, lyrics):
-        # print(lyrics)
         pattern = re.compile(r'((?:^|\n).+?)\n\[Chorus.*?\1\n\[Chorus', re.IGNORECASE | re.MULTILINE | re.DOTALL)
         m = re.search(pattern, lyrics)
         if m:
             prechorus = m.group(1).strip()
             if not prechorus.lower().startswith('[chorus'):
-                print(prechorus)
                 lyrics = lyrics.replace(f"{prechorus}\n\n[Chorus", f"\n[Pre-Chorus]\n{prechorus}\n\n[Chorus")
 
         lyrics = re.sub(r'\[Pre-Chorus\]\n\[.*?\]', '[Pre-Chorus]', lyrics, 0, re.DOTALL | re.MULTILINE)
