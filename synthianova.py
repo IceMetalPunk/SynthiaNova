@@ -315,12 +315,13 @@ class SynthiaNova:
             parsed = parsed.replace('~~~~~~~~~~' + str(i) + '~~~~~~~~~~', chorus).strip()
         if not parsed.startswith('[Chorus'):
             parsed = '[Verse]\n' + parsed
+        parsed = re.sub(r'\s+?\n', '\n', parsed)
         parsed = re.sub('\n +', r'\n', parsed)
         parsed = re.sub('\n{3,}', r'\n\n', parsed)
         parsed = re.sub(r'\]\n\s*\n+', r']\n', parsed).strip()
         parsed = re.sub(r'\[Verse\]\s*$', '', parsed)
         parsed = re.sub(r'(?<!\n)\[', r'\n\n[', parsed)
-        parsed = re.sub(r'\[Verse\]\n\[Chorus( [0-9]+)?\]', r"[Chorus\1]", parsed)
+        parsed = re.sub(r'\[Verse\](?:\n\s*?)+\[Chorus( [0-9]+)?\]', r"[Chorus\1]", parsed, flags = re.MULTILINE)
         parsed = self.__format_as_quatrains(parsed, has_bridge)
         return parsed.strip()
 
