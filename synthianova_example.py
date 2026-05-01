@@ -1,7 +1,7 @@
 import os
 from dotenv import load_dotenv
-load_dotenv()
 from synthianova import SynthiaNova
+load_dotenv()
 
 # TODO: Update thie example to include all the latest features, including the rich.live/rich.panel display!
 if __name__ == '__main__':

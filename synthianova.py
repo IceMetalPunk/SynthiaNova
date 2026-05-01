@@ -80,7 +80,7 @@ class SynthiaNova:
         event_description = response.event_description
         age = response.age
         impact = response.impact
-        if not str(age) in event_description and re.search(fr"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
+        if str(age) not in event_description and re.search(fr"(^|\W){num2words(age)}(\W|$)", event_description, re.IGNORECASE) is None:
             if event_description[0:2] != 'I ':
                 event_description = event_description[0].lower() + event_description[1:]
             event_description = 'When I was ' + str(age) + ', ' + event_description
@@ -156,7 +156,7 @@ class SynthiaNova:
         SYNTHIA_PANEL.update(systemText = 'Chosen emotion: ' + response.emotion)
         age = response.age
         impact = response.impact
-        if not str(age) in event_description and not num2words(age) in event_description:
+        if str(age) not in event_description and num2words(age) not in event_description:
             if event_description[0:2] != 'I ':
                 event_description = event_description[0].lower() + event_description[1:]
             event_description = 'When I was ' + str(age) + ', ' + event_description
@@ -236,7 +236,7 @@ class SynthiaNova:
         wasBgVocal = False
         for line in naive_split:
             bgline = re.match(r'^\((.*?)\)$', line)
-            isBgVocal = bgline and not ')' in bgline.group(1) and len(line) < 17 # Long lines are likely bgvocals but part of the quatrain
+            isBgVocal = bgline and (')' not in bgline.group(1)) and len(line) < 17 # Long lines are likely bgvocals but part of the quatrain
             # Put backing vocals at end of previous line, or if they're the first line in a section, at beginning of next line. Append all else.
             if (isBgVocal and len(result) > 0) or (not isBgVocal and wasBgVocal):
                 result[-1] += ' ' + line
@@ -279,18 +279,18 @@ class SynthiaNova:
                     sectionTypes[previousSectionIndex] = 'Bridge'
                     if lastChorusIndex == 1:
                         sectionTypes[previousSectionIndex] = 'Intro'
-        for l, section in enumerate(sections):
+        for linenum, section in enumerate(sections):
             lines = self.__determine_section_lines(section)
             inserted = 0
             for i in range(4, len(lines), 4):
                 lines.insert(i + inserted, '')
                 inserted += 1
-            if l > 0 and sectionTypes[l] == sectionTypes[l-1]:
-                sections[l] = '\n'.join(lines) + '\n'
-            elif sectionTypes[l] == 'Outro' and len(lines) > 4:
-                sections[l] = '\n'.join([f"[Verse]"] + lines) + '\n'
+            if linenum > 0 and sectionTypes[linenum] == sectionTypes[linenum-1]:
+                sections[linenum] = '\n'.join(lines) + '\n'
+            elif sectionTypes[linenum] == 'Outro' and len(lines) > 4:
+                sections[linenum] = '\n'.join(["[Verse]"] + lines) + '\n'
             else:
-                sections[l] = '\n'.join([f"[{sectionTypes[l]}]"] + lines) + '\n'
+                sections[linenum] = '\n'.join([f"[{sectionTypes[linenum]}]"] + lines) + '\n'
         return self.__label_prechoruses('\n'.join(sections))
 
     def __process_song(self, song):
@@ -342,7 +342,7 @@ class SynthiaNova:
             if key.lower() == title.lower():
                 title = key
                 break
-        if not title in self.songs:
+        if title not in self.songs:
             return 'I don\'t have a song called "' + title + '".'
         subject = self.songs[title]['subject']
         memories = []
