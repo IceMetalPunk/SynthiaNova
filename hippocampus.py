@@ -120,17 +120,20 @@ class Memories:
         SYNTHIA_PANEL.update(systemText = 'Memories saved.')
 
     def does_contradict(self, query: str):
-        cross_inp = [(memory, query) for memory in self.memory_list]
+        relevant_candidates = self.recall(query, 5, minScore=-9)
+        if not relevant_candidates:
+            return (False, None)
+        cross_inp = [(memory, query) for memory in relevant_candidates]
         SYNTHIA_PANEL.update(synthiaText='Making sure I\'m not misremembering; this takes concentration, so please give me a minute...')
         cross_scores = contradiction_checker.predict(cross_inp)
 
         args = cross_scores.argmax(axis=1)
         for i, score_max in enumerate(args):
             if score_max == 0:
-                return True, self.memory_list[i]
-        return False, None
+                return True, relevant_candidates[i]
+        return (False, None)
 
-    def recall(self, query: str, count: int = 3, returnScore: bool = False):
+    def recall(self, query: str, count: int = 3, returnScore: bool = False, minScore: int = -6):
         ''' Note: Will only search through the last saved memories, so save before searching! '''
         if len(self.memory_list) <= 0 or self.database is None:
             return list()
@@ -151,6 +154,6 @@ class Memories:
 
         hits = sorted(hits, key=lambda x: x['cross-score'], reverse=True)
         if returnScore:
-            return [(hit['text'], hit['cross-score']) for hit in hits[0:count] if hit['cross-score'] > -6]
+            return [(hit['text'], hit['cross-score']) for hit in hits[0:count] if hit['cross-score'] > minScore]
         else:
-            return [hit['text'] for hit in hits[0:count] if hit['cross-score'] > -6]
+            return [hit['text'] for hit in hits[0:count] if hit['cross-score'] > minScore]
