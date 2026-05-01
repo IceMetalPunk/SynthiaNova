@@ -17,7 +17,7 @@ class LLM_REFUSAL(Exception):
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    # model: str = 'gpt-5.2' # Better than 5.0, but still purple, nonsense poetry
+    # model: str = 'gpt-5.5' # Better than 5.0, but still purple, nonsense poetry
     model: str = 'gpt-4.1'
     songs: dict = {}
     memories = None
