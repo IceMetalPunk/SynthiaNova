@@ -239,8 +239,12 @@ class SynthiaNova:
             isBgVocal = bgline and (')' not in bgline.group(1)) and len(line) < 17 # Long lines are likely bgvocals but part of the quatrain
             # Put backing vocals at end of previous line, or if they're the first line in a section, at beginning of next line. Append all else.
             if (isBgVocal and len(result) > 0) or (not isBgVocal and wasBgVocal):
-                result[-1] += ' ' + line
-                wasBgVocal = False
+                if not result[-1].startswith('~~~~.'): # Don't merge lyric lines with in-lyric direction lines
+                    result[-1] += ' ' + line
+                    wasBgVocal = False
+                else:
+                    result.append(line)
+                    wasBgVocal = True
             elif isBgVocal:
                 result.append(line)
                 wasBgVocal = True
@@ -255,7 +259,7 @@ class SynthiaNova:
         m = re.search(pattern, lyrics)
         if m:
             prechorus = m.group(1).strip()
-            if not prechorus.lower().startswith('[chorus'):
+            if prechorus and not prechorus.lower().startswith('[chorus'):
                 lyrics = lyrics.replace(f"{prechorus}\n\n[Chorus", f"\n[Pre-Chorus]\n{prechorus}\n\n[Chorus")
 
         lyrics = re.sub(r'\[Pre-Chorus\]\n\[.*?\]', '[Pre-Chorus]', lyrics, 0, re.DOTALL | re.MULTILINE)
@@ -279,12 +283,19 @@ class SynthiaNova:
                     sectionTypes[previousSectionIndex] = 'Bridge'
                     if lastChorusIndex == 1:
                         sectionTypes[previousSectionIndex] = 'Intro'
+        # This loop used to be simpler, but to handle in-lyric direction lines that shouldn't be counted in a group, it got more complex.
         for linenum, section in enumerate(sections):
-            lines = self.__determine_section_lines(section)
-            inserted = 0
-            for i in range(4, len(lines), 4):
-                lines.insert(i + inserted, '')
-                inserted += 1
+            original_lines = self.__determine_section_lines(section)
+            group_line_count = 0
+            lines = []
+            for line_index in range(len(original_lines)):
+                if group_line_count < 4:
+                    if not original_lines[line_index].startswith('~~~~.'):
+                        group_line_count += 1
+                    lines.append(original_lines[line_index].replace('~~~~.', '['))
+                else:
+                    lines.append('')
+                    group_line_count = 0
             if linenum > 0 and sectionTypes[linenum] == sectionTypes[linenum-1]:
                 sections[linenum] = '\n'.join(lines) + '\n'
             elif sectionTypes[linenum] == 'Outro' and len(lines) > 4:
@@ -301,7 +312,7 @@ class SynthiaNova:
         choruses_unsorted = sorted(set(song['choruses']), key=song['choruses'].index)
         has_bridge = song['has_bridge'] if 'has_bridge' in song else False
         lyrics = lyrics.strip()
-        parsed = lyrics
+        parsed = re.sub(r'^\[', '~~~~.', lyrics, flags=re.MULTILINE) # Prep in-lyric directions not to be treated as sections
         for (i, chorusRaw) in enumerate(choruses):
             chorus = chorusRaw.strip()
             chorus_numbering = ''
