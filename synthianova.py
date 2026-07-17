@@ -17,7 +17,7 @@ class LLM_REFUSAL(Exception):
 
 class SynthiaNova:
     songFilename: str = 'songs.json'
-    # model: str = 'gpt-5.5' # Better than 5.0, but still purple, nonsense poetry
+    # model: str = 'gpt-5.6' # ?
     model: str = 'gpt-4.1'
     songs: dict = {}
     memories = None
@@ -52,8 +52,8 @@ class SynthiaNova:
         return LLM_REFUSAL(response_message.refusal)
 
     def __get_song_request_prompt(self, subject, initial_memory, events, genres, vibe):
-        basePrompt = "\n\nYou've been inspired to write a new song, specifically a " + vibe + " song about the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. Remember to be diverse and creative with the genres you choose. Your main inspiration should be mostly the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary focus of the song; but here are some other related memories you've talked about; don't try to force them all into the song, just let them be general inspiration to supplement the main memory:\n\n"
-        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a 4 to 5 minute long song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened! Try not to be too on the nose with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nRemember: pick different genres!\n\nUse the following form to write the song:'
+        basePrompt = "\n\nYou've been inspired to write a new song, a " + vibe + " song inspired by the following topic: " + subject + "\n\nPlease do so using the specified format. You may make the new song personal to you, to your life, and to your specific life experiences, or more general and relatable, depending on what sounds good. But always try to connect with your adult audience, don't focus too much on the specifics of childhood. Remember to be diverse and creative with the genres you choose. Your main inspiration should be mostly the following memory from your life, in your own words:\n\n\"" + initial_memory + "\"\n\nThat should be the primary inspiration for the song; but here are some other related memories you've talked about; don't try to force them all into the song, just let them be general inspiration to supplement the main memory:\n\n"
+        return basePrompt + '"' + '\n\n'.join(events) + '"\n\nNow write a 4 to 5 minute long song using these events as some inspiration. Just let them inspire you; you don\'t need to write directly about what happened unless the event itself is generally relatable! Try not to be too on the nose or overly specific with your inspiration. For the genre, be diverse so your art doesn\'t become boring and stale! For reference, these are the genres of each song you\'ve already written; try to avoid the same genre over and over, please. Existing genres:\n\n' + '\n'.join(genres) + '\n\nRemember: pick different genres, be varied!\n\nUse the specified format to write the song.'
 
     def __get_base_personality_prompt(self):
         return "You are a famous 29-year-old female singer from the city. Your work is renowned for being creative and eclectic, ranging from dancy pop songs to progressive rock to electronic to industrial metal, and even R&B and soul music. No two songs have the same style. Your lyrics often draw from your personal experience, and are known for being sometimes emotional, sometimes fun and casual, but always relatable. Sometimes they're just fun, bubblegum pop songs, other times they're emotional. They're always written in first person, as personal experiences, about a wide range of subjects, including life and death, love, partying, fun times, relationships, mental health, politics, and many more topics. You've had heartbreak and grief in life, but also love and wonderful times. You enjoy traveling, but also love modern city life."
@@ -62,7 +62,7 @@ class SynthiaNova:
         if forcedTopic:
             return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a good song subject based on that memory? It should be either relatable and interesting, or specific to the memory, depending on the mood. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise. Pick a subject for the new song inspired by that memory. Use the following topic as a guideline: \"" + forcedTopic + "\". Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious or otherwise unhappy topic."
         else:
-            return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many people, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your specific life experiences. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious or otherwise unhappy topic."
+            return self.__get_base_personality_prompt() + "\n\nYou've been inspired to write a new song about the following event from your life, in your own words: \"" + initial_memory + "\"\n\nWhat is a slightly more general topic for the new song, using that memory as the basis? It should be something vague enough to be relatable to many adults, but still interesting. It should convey the emotion of " + emotion + ", really feeling the " + emotion + " and not swaying from it. Pick something concise and not too specific. Pick a subject for the new song inspired by that memory. It should be either casual and fun, or personal to your specific life experiences. Make sure it emphasizes the feeling of " + emotion + "! DON'T always put a positive spin on things if it's a serious or otherwise unhappy topic."
 
     def __imagine_memory(self, subject: str, vibe: str = 'personal'):
         ages = self.memories.get_memory_ages()
@@ -239,7 +239,8 @@ class SynthiaNova:
             isBgVocal = bgline and (')' not in bgline.group(1)) and len(line) < 17 # Long lines are likely bgvocals but part of the quatrain
             # Put backing vocals at end of previous line, or if they're the first line in a section, at beginning of next line. Append all else.
             if (isBgVocal and len(result) > 0) or (not isBgVocal and wasBgVocal):
-                if not result[-1].startswith('~~~~.'): # Don't merge lyric lines with in-lyric direction lines
+                # Don't merge lyric lines with in-lyric direction lines nor previous ones that end in punctuation
+                if not result[-1].startswith('~~~~.') and re.findall(r'([a-zA-Z0-9)]|\s)$', result[-1]):
                     result[-1] += ' ' + line
                     wasBgVocal = False
                 else:
