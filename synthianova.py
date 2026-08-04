@@ -231,7 +231,7 @@ class SynthiaNova:
 
     def __determine_section_lines(self, section):
         '''Lines that are just backing vocals get merged into the previous or next lines, to avoid quatrain space breaking.'''
-        naive_split = [line.strip() for line in section.split('\n')]
+        naive_split = [line.strip() for line in section.split('\n') if line.strip()]
         result = []
         wasBgVocal = False
         for line in naive_split:
@@ -290,10 +290,10 @@ class SynthiaNova:
             group_line_count = 0
             lines = []
             for line_index in range(len(original_lines)):
-                if group_line_count < 4:
+                lines.append(original_lines[line_index].replace('~~~~.', '['))
+                if group_line_count < 3:
                     if not original_lines[line_index].startswith('~~~~.'):
                         group_line_count += 1
-                    lines.append(original_lines[line_index].replace('~~~~.', '['))
                 else:
                     lines.append('')
                     group_line_count = 0
